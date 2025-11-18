@@ -109,24 +109,10 @@
         <div class="card temp-chart-card">
           <h3>How's the temperature today?</h3>
           <div class="temp-controls">
-            <button class="control-btn active">🌡️</button>
-            <button class="control-btn">☔</button>
-            <button class="control-btn">💨</button>
+            
           </div>
           <div class="chart">
-            <svg viewBox="0 0 400 120" class="temp-line">
-              <path
-                d="M 20,80 Q 80,40 120,50 T 220,60 T 320,80 T 380,70"
-                fill="none"
-                stroke="#DCD0A8"
-                stroke-width="2"
-              />
-              <circle cx="80" cy="45" r="8" fill="#004030" />
-              <circle cx="80" cy="45" r="3" fill="#DCD0A8" />
-              <circle cx="160" cy="55" r="6" fill="#DCD0A8" />
-              <circle cx="240" cy="62" r="6" fill="#DCD0A8" />
-              <circle cx="320" cy="75" r="6" fill="#DCD0A8" />
-            </svg>
+          
             <div class="chart-labels">
               <div class="label">
                 <span class="icon">☁️</span>
@@ -515,7 +501,7 @@ const weatherData = ref({
 /* Weather Card */
 .weather-card {
 
-background-color: #FFF9E5;
+background-color: #999;
 
 }
 
@@ -541,7 +527,7 @@ background-color: #FFF9E5;
 }
 
 .weather-icon {
-  font-size: 60px;
+  font-size: 90px;
 }
 
 .weather-status {
@@ -639,7 +625,7 @@ background-color: #FFF9E5;
 /* Temperature Chart Card */
 .temp-chart-card {
   grid-column: span 2;
-  background-color: #4A9782;
+  background-color: #fff;
 }
 
 .temp-chart-card h3 {
@@ -692,8 +678,8 @@ background-color: #FFF9E5;
 }
 
 .label .icon {
-  font-size: 24px;
-  margin-bottom: 8px;
+  font-size: 106px;
+  margin-bottom: 50px;
 }
 
 .label .temp {
@@ -711,7 +697,7 @@ background-color: #FFF9E5;
 
 /* Tomorrow Card */
 .tomorrow-card {
-  background-color:  #C8E6C9;
+  background-color:  #fff;
 
 }
 
@@ -736,7 +722,8 @@ background-color: #FFF9E5;
 }
 
 .umbrella-icon {
-  font-size: 60px;
+  font-size: 105px;
+  margin-left: 15px;
 }
 
 .tomorrow-temp {
@@ -769,7 +756,8 @@ background-color: #FFF9E5;
 
 /* Sunset Card */
 .sunset-card {
-  background: linear-gradient(180deg, var(--primary-pale) 0%, white 100%);
+  background: #ffffff;
+  margin-top: 20px;
 }
 
 .sun-chart svg {
@@ -784,22 +772,23 @@ background-color: #FFF9E5;
 }
 
 .sun-time .label {
-  font-size: 12px;
+  font-size:20px;
+  font-weight: 700;
   color: var(--primary-medium);
   margin: 0 0 4px 0;
 }
 
 .sun-time .time {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 25px;
+  font-weight: 700;
   color: var(--primary-dark);
   margin: 0;
 }
 
 /* UV Card */
 .uv-card {
-  background: var(--primary-dark);
-  color: white;
+  background-color: #fff;
+  color: #004030;
 }
 
 .uv-content {
@@ -807,6 +796,7 @@ background-color: #FFF9E5;
   align-items: center;
   gap: 15px;
   margin-bottom: 10px;
+ 
 }
 
 .uv-icon {

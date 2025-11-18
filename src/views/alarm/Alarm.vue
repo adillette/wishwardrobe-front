@@ -230,7 +230,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, h } from 'vue'
 import { defineOptions } from 'vue'
 // 컴포넌트 이름 설정
 defineOptions({
@@ -264,95 +264,37 @@ const forecast = ref([
   { name: 'Wed', high: 8, low: 4 }
 ])
 
-// 의상 카테고리 아이콘 컴포넌트들을 SVG로 정의
+// 의상 카테고리 아이콘 컴포넌트들을 이모지로 정의
 const TShirtIcon = {
-  template: `
-    <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="8" y="15" width="24" height="20" rx="2" fill="currentColor"/>
-      <rect x="5" y="12" width="6" height="15" rx="3" fill="currentColor"/>
-      <rect x="29" y="12" width="6" height="15" rx="3" fill="currentColor"/>
-      <path d="M12 10c0-2 2-4 4-4h8c2 0 4 2 4 4v5H12v-5z" fill="currentColor"/>
-    </svg>
-  `
+  render: () => h('span', { class: 'emoji-icon' }, '👕')
 }
 
 const JacketIcon = {
-  template: `
-    <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="6" y="15" width="28" height="20" rx="2" fill="currentColor"/>
-      <rect x="3" y="12" width="6" height="18" rx="3" fill="currentColor"/>
-      <rect x="31" y="12" width="6" height="18" rx="3" fill="currentColor"/>
-      <path d="M10 10c0-3 3-6 6-6h8c3 0 6 3 6 6v8H10v-8z" fill="currentColor"/>
-      <rect x="15" y="20" width="2" height="8" fill="white"/>
-      <rect x="23" y="20" width="2" height="8" fill="white"/>
-    </svg>
-  `
+  render: () => h('span', { class: 'emoji-icon' }, '🧥')
 }
 
 const DressIcon = {
-  template: `
-    <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 15c0-2 2-4 4-4h8c2 0 4 2 4 4v2L35 35H5L12 17v-2z" fill="currentColor"/>
-      <circle cx="20" cy="8" r="4" fill="currentColor"/>
-    </svg>
-  `
+  render: () => h('span', { class: 'emoji-icon' }, '👗')
 }
 
 const JeansIcon = {
-  template: `
-    <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="12" y="8" width="16" height="5" fill="currentColor"/>
-      <rect x="14" y="13" width="6" height="22" fill="currentColor"/>
-      <rect x="20" y="13" width="6" height="22" fill="currentColor"/>
-      <rect x="15" y="18" width="4" height="1" fill="white"/>
-      <rect x="21" y="18" width="4" height="1" fill="white"/>
-    </svg>
-  `
+  render: () => h('span', { class: 'emoji-icon' }, '👖')
 }
 
 const ShirtIcon = {
-  template: `
-    <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="8" y="15" width="24" height="22" rx="2" fill="currentColor"/>
-      <rect x="5" y="12" width="6" height="18" rx="3" fill="currentColor"/>
-      <rect x="29" y="12" width="6" height="18" rx="3" fill="currentColor"/>
-      <path d="M12 10c0-2 2-4 4-4h8c2 0 4 2 4 4v8H12v-8z" fill="currentColor"/>
-      <rect x="16" y="18" width="8" height="1" fill="white"/>
-      <circle cx="14" cy="20" r="1" fill="white"/>
-      <circle cx="14" cy="23" r="1" fill="white"/>
-      <circle cx="14" cy="26" r="1" fill="white"/>
-    </svg>
-  `
+  render: () => h('span', { class: 'emoji-icon' }, '👔')
 }
 
 const CardiganIcon = {
-  template: `
-    <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M6 15v20c0 1 1 2 2 2h24c1 0 2-1 2-2V15L28 12V10c0-2-2-4-4-4h-8c-2 0-4 2-4 4v2L6 15z" fill="currentColor"/>
-      <rect x="3" y="12" width="6" height="20" rx="3" fill="currentColor"/>
-      <rect x="31" y="12" width="6" height="20" rx="3" fill="currentColor"/>
-      <rect x="18" y="15" width="4" height="15" fill="white"/>
-    </svg>
-  `
+  render: () => h('span', { class: 'emoji-icon' }, '🧶')
 }
 
 const SkirtIcon = {
-  template: `
-    <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="12" y="10" width="16" height="4" fill="currentColor"/>
-      <path d="M10 14L8 30c0 2 2 4 4 4h16c2 0 4-2 4-4L30 14H10z" fill="currentColor"/>
-    </svg>
-  `
+  render: () => h('span', { class: 'emoji-icon' }, '🩱')
 }
 
 const ShoesIcon = {
-  template: `
-    <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <ellipse cx="20" cy="30" rx="15" ry="4" fill="currentColor"/>
-      <path d="M8 30c0-3 2-8 4-12 1-2 3-4 5-4h6c2 0 4 2 5 4 2 4 4 9 4 12H8z" fill="currentColor"/>
-      <rect x="15" y="18" width="10" height="2" fill="white"/>
-    </svg>
-  `
+  render: () => h('span', { class: 'emoji-icon' }, '👟')
 }
 
 // 카테고리 목록
@@ -877,6 +819,11 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   align-items: center;
+}
+
+.emoji-icon {
+  font-size: 40px;
+  line-height: 1;
 }
 
 .category-item p {
