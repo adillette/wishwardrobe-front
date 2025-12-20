@@ -17,9 +17,16 @@ const routes = [
       title: '날씨',
       requiresAuth: true 
     }
-  }
-
-  ,
+  },
+  {
+    path: '/login',
+    name: 'login',
+    component: () => import('../views/WeatherWardrobeMain.vue'),
+    meta: { 
+      title: '로그인',
+      requiresAuth: false 
+    }
+  },
   ...weatherRouting,
   ...wardrobeRouting,
   ...alarmRouting

@@ -75,34 +75,17 @@
           </div>
         </div>
 
-        <!-- Air Quality Card -->
-        <div class="card air-quality-card">
+        <!-- Current Location Map Card -->
+        <div class="card location-map-card">
           <div class="card-header">
-            <span class="icon">💨</span>
+            <span class="icon">📍</span>
             <div>
-              <h3>Air Quality</h3>
-              <p class="subtitle">Main pollution: PM 2.5</p>
+              <h3>Current Location</h3>
+              <p class="subtitle">{{ locationMessage }}</p>
             </div>
           </div>
-          <div class="aqi-main">
-            <div class="aqi-value">
-              <h1>390</h1>
-              <span class="aqi-badge">AQI</span>
-            </div>
-            <div class="wind-icon">🎈</div>
-          </div>
-          <p class="aqi-location">West Wind</p>
-          <div class="aqi-scale">
-            <div class="scale-item good">
-              <span>Good</span>
-            </div>
-            <div class="scale-item standard active">
-              <span>Standard</span>
-            </div>
-            <div class="scale-item hazardous">
-              <span>Hazardous</span>
-            </div>
-          </div>
+          <div id="map" class="kakao-map"></div>
+          <p class="location-info-text">{{ currentLocation }}</p>
         </div>
 
         <!-- Temperature Chart -->
@@ -224,9 +207,8 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { defineOptions } from 'vue'
-
 
 // 컴포넌트 이름 (선택)
 defineOptions({
@@ -241,6 +223,146 @@ const weatherData = ref({
   humidity: null,
   windSpeed: null
 })
+
+// 위치 정보 관련 데이터
+const locationMessage = ref('Loading...')
+const currentLocation = ref('')
+const userLatitude = ref(null)
+const userLongitude = ref(null)
+let mapClickHandler = null
+let mapContainerEl = null
+
+onBeforeUnmount(() => {
+  if (mapContainerEl && mapClickHandler) {
+    mapContainerEl.removeEventListener('click', mapClickHandler)
+  }
+})
+
+
+// 지도 초기화 및 현재 위치 표시
+onMounted(() => {
+  const boot = () => {
+    if (!window.kakao?.maps?.load) return false
+    window.kakao.maps.load(() => initMap())
+    return true
+  }
+
+  if (boot()) return
+
+  let attempts = 0
+  const timer = setInterval(() => {
+    attempts++
+    if (boot()) clearInterval(timer)
+    else if (attempts >= 50) {
+      clearInterval(timer)
+      console.error('Kakao Maps API가 로드되지 않았습니다.')
+      locationMessage.value = 'Map API 로드 실패'
+      currentLocation.value = 'API 키/도메인/제품 활성화를 확인하세요.'
+    }
+  }, 100)
+})
+
+function initMap() {
+   mapContainerEl = document.getElementById('map')
+  if (!mapContainerEl) return
+
+  const mapOption = {
+    center: new window.kakao.maps.LatLng(33.450701, 126.570667),
+    level: 3
+  }
+
+  const map = new window.kakao.maps.Map(mapContainerEl, mapOption)
+
+  // 기본 안내 (자동 위치 요청 X)
+  locationMessage.value = '지도를 클릭해 현재 위치를 불러오세요.'
+  currentLocation.value = '위치 권한이 필요합니다.'
+
+  // 이미 권한이 “허용”인 경우에만 자동 시도(선택)
+  tryAutoRequestIfGranted(map)
+
+  // 권한이 아직이면, 클릭(사용자 제스처)으로 요청
+  mapClickHandler = () => requestCurrentLocation(map)
+  mapContainerEl.addEventListener('click', mapClickHandler)
+}
+async function tryAutoRequestIfGranted(map) {
+  try {
+    if (!navigator.permissions?.query) return
+    const status = await navigator.permissions.query({ name: 'geolocation' })
+    if (status.state === 'granted') requestCurrentLocation(map)
+  } catch {
+    // permissions API 미지원이면 무시
+  }
+}
+
+function requestCurrentLocation(map) {
+  if (!navigator.geolocation) {
+    locationMessage.value = 'Geolocation 미지원'
+    currentLocation.value = '브라우저가 위치 서비스를 지원하지 않습니다.'
+    return
+  }
+
+  locationMessage.value = '위치 확인 중...'
+  currentLocation.value = ''
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const lat = position.coords.latitude
+      const lon = position.coords.longitude
+
+      userLatitude.value = lat
+      userLongitude.value = lon
+
+      const locPosition = new window.kakao.maps.LatLng(lat, lon)
+      const message = '<div style="padding:5px;">여기에 계신가요?!</div>'
+
+      locationMessage.value = `위도: ${lat.toFixed(6)}, 경도: ${lon.toFixed(6)}`
+      currentLocation.value = '현재 위치를 찾았습니다!'
+
+      displayMarker(map, locPosition, message)
+    },
+    (error) => {
+      console.error('Geolocation error:', error)
+
+      if (error.code === 1) {
+        locationMessage.value = '위치 권한이 거부됨'
+        currentLocation.value = '사이트 설정에서 위치를 “허용”으로 바꿔주세요.'
+      } else if (error.code === 2) {
+        locationMessage.value = '위치 정보를 가져올 수 없음'
+        currentLocation.value = 'GPS/네트워크 상태를 확인해주세요.'
+      } else if (error.code === 3) {
+        locationMessage.value = '위치 요청 시간 초과'
+        currentLocation.value = '잠시 후 다시 시도해주세요.'
+      } else {
+        locationMessage.value = 'Geolocation 오류'
+        currentLocation.value = '위치 정보를 가져올 수 없습니다.'
+      }
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  )
+}
+
+function displayMarker(map, locPosition, message) {
+  // 마커 생성
+  const marker = new window.kakao.maps.Marker({
+    map: map,
+    position: locPosition
+  })
+
+  const iwContent = message
+  const iwRemoveable = true
+
+  // 인포윈도우 생성
+  const infowindow = new window.kakao.maps.InfoWindow({
+    content: iwContent,
+    removable: iwRemoveable
+  })
+
+  // 인포윈도우를 마커 위에 표시
+  infowindow.open(map, marker)
+
+  // 지도 중심좌표를 접속위치로 변경
+  map.setCenter(locPosition)
+}
 </script>
 
 <style scoped>
@@ -563,63 +685,25 @@ background-color: #999;
   margin: 0;
 }
 
-/* Air Quality Card */
-.air-quality-card {
-  background: linear-gradient(135deg, var(--primary-medium) 0%, #5AB09A 100%);
-  color: white;
-  background-color: #DCD0A8;
+/* Location Map Card */
+.location-map-card {
+  background: white;
 }
 
-.air-quality-card .card-header h3,
-.air-quality-card .card-header .subtitle,
-.air-quality-card .aqi-location {
-  color: white;
+.kakao-map {
+  width: 100%;
+  height: 250px;
+  border-radius: 12px;
+  margin: 15px 0;
+  overflow: hidden;
 }
 
-.aqi-main {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 20px 0;
-}
-
-.aqi-value h1 {
-  font-size: 64px;
-  font-weight: 700;
-  color: white;
-  margin: 0;
-  display: inline;
-}
-
-.aqi-badge {
-  background: var(--primary-dark);
-  padding: 4px 12px;
-  border-radius: 8px;
-  font-size: 12px;
-  margin-left: 10px;
-}
-
-.wind-icon {
-  font-size: 48px;
-}
-
-.aqi-scale {
-  display: flex;
-  gap: 10px;
-  margin-top: 20px;
-}
-
-.scale-item {
-  flex: 1;
-  padding: 8px;
-  border-radius: 8px;
+.location-info-text {
+  font-size: 14px;
+  color: var(--primary-dark);
   text-align: center;
-  font-size: 11px;
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.scale-item.active {
-  background: var(--primary-dark);
+  margin: 10px 0 0 0;
+  font-weight: 500;
 }
 
 /* Temperature Chart Card */
