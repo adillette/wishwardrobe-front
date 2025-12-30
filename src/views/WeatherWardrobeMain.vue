@@ -57,11 +57,9 @@
 
         <!-- 현재 날씨 카드 -->
         <div class="current-weather-card">
-          <div class="location">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-            </svg>
-            <span>{{ currentLocation }}</span>
+          <div class="location-display" v-if="currentLocationName">
+            <span class="location-label">위치:</span>
+            <span class="location-name">{{ currentLocationName }}</span>
           </div>
           <div class="temperature">{{ currentTemperature }}°C</div>
         </div>
@@ -76,8 +74,24 @@
               class="wardrobe-card"
             >
               <div class="card-header">{{ item.day }}</div>
-              <div class="clothing-image">
-                <img :src="item.image" :alt="item.day" />
+              <div class="card-temp">{{ item.temperature }}°C</div>
+              <div class="clothing-list">
+                <div 
+                  v-for="(clothing, idx) in item.clothes" 
+                  :key="idx" 
+                  class="clothing-item"
+                >
+                  <img 
+                    v-if="clothing.imageUrl" 
+                    :src="clothing.imageUrl" 
+                    :alt="clothing.name" 
+                    class="clothing-image"
+                  />
+                  <span class="clothing-name">{{ clothing.name }}</span>
+                </div>
+                <div v-if="!item.clothes || item.clothes.length === 0" class="no-clothes">
+                  추천 옷 없음
+                </div>
               </div>
             </div>
           </div>
@@ -107,13 +121,15 @@
 
 <script>
 import { ref, onMounted } from 'vue';
-// import axios from 'axios';
+import wardrobeApi from '@/apis/wardrobeApi';
+import weatherApi from '@/apis/weatherApi';
 
 export default {
   name: 'WeatherWardrobe',
   setup() {
-    //** 반응형 상태 변수들 정의
-    const currentLocation = ref('Seoul/South of Korea');
+    // 반응형 상태 변수들 정의
+    const currentCoordinates = ref({ lat: 37.5665, lon: 126.9780 }); // 서울 기본 좌표
+    const currentLocationName = ref(''); // 백엔드에서 받아온 위치명
     const currentTemperature = ref(10);
     const highestTemp = ref(12);
     const highestLocation = ref('Incheon');
@@ -121,19 +137,22 @@ export default {
     const lowestLocation = ref('Busan');
     const beforeTemp = ref('+5');
     
-    //** 옷차림 히스토리 데이터 (실제로는 백엔드에서 가져와야 함)
+    //** 옷차림 히스토리 데이터
     const wardrobeHistory = ref([
       {
         day: '2 days ago',
-        image: '/images/여성원피스2.png' // 업데이트된 이미지 경로
+        temperature: 8,
+        clothes: []
       },
       {
         day: 'yesterday',
-        image: '/images/여성원피스3.png' // 업데이트된 이미지 경로
+        temperature: 10,
+        clothes: []
       },
       {
         day: 'today',
-        image: '/images/원피스4.png' // 업데이트된 이미지 경로
+        temperature: 12,
+        clothes: []
       }
     ]);
 
@@ -149,38 +168,182 @@ export default {
       // 실제 뒤로가기 로직 구현
     };
 
+
+
     //** 기상청 API에서 날씨 데이터 가져오기
     const fetchWeatherData = async (location) => {
       try {
-        //** 백엔드 API 호출
-        // const response = await axios.get(`/api/v1/weather?location=${location}`);
+        let response;
+      
+        if(currentCoordinates.value?.lat&& currentCoordinates.value?.lon)
+
+        response= await weatherApi.getWeatherByCoordinates(currentCoordinates.value.lat,currentCoordinates.value.lon);
         
+        else  response = await weatherApi.getWeatherByLocation(location);
+        
+        console.log("현재 온도",response);
         //** 응답 데이터로 상태 업데이트
-        // if (response.data) {
-        //   currentTemperature.value = response.data.currentTemp || 10;
-        //   highestTemp.value = response.data.highestTemp || 12;
-        //   lowestTemp.value = response.data.lowestTemp || 0;
+        if (response) {
+          // 백엔드 WeatherForecastDTO 구조에 맞춰 매핑
+          currentTemperature.value = response.maxTemperature || response.minTemperature || 10;
+          highestTemp.value = response.maxTemperature || 12;
+          lowestTemp.value = response.minTemperature || 0;
           
-        //   console.log('날씨 데이터 로드 성공:', response.data);
-        // }
+          // 위치 정보는 카카오 API에서 이미 설정했으므로 백엔드 응답으로 덮어쓰지 않음
+
+          console.log('날씨 데이터 로드 성공:', response);
+        }
       } catch (error) {
         console.error('날씨 데이터 로드 실패:', error);
         //** 에러 발생 시 기본값 사용
       }
     };
 
-    //** 컴포넌트 마운트 시 날씨 데이터 로드
-    onMounted(() => {
-      fetchWeatherData(currentLocation.value);
+    //** 사용자의 현재 위치 가져오기 (Geolocation API)
+    const getCurrentPosition = () => {
+      return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+          reject(new Error('Geolocation is not supported'));
+          return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            const { latitude, longitude } = position.coords;
+            currentCoordinates.value = { lat: latitude, lon: longitude };
+            
+            try {
+              // 카카오맵 Reverse Geocoding으로 위도/경도 → 지역명 변환
+              const locationName = await reverseGeocode(latitude, longitude);
+              currentLocationName.value = locationName; // 위치명 저장
+              
+              resolve(locationName);
+            } catch (error) {
+              console.error('Reverse Geocoding 실패:', error);
+              // 실패 시 기본 지역명 사용
+              currentLocationName.value = '서울';
+              resolve('서울');
+            }
+          },
+          (error) => {
+            console.error('위치 정보 가져오기 실패:', error);
+            reject(error);
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 0
+          }
+        );
+      });
+    };
+
+    //** 카카오맵 JavaScript SDK로 좌표를 지역명으로 변환 (Reverse Geocoding)
+    const reverseGeocode = async (lat, lon) => {
+      return new Promise((resolve, reject) => {
+        try {
+          // Kakao Maps SDK 로드 확인
+          if (!window.kakao || !window.kakao.maps) {
+            console.error('Kakao Maps SDK가 로드되지 않았습니다');
+            reject(new Error('Kakao Maps SDK not loaded'));
+            return;
+          }
+
+          // Geocoder 초기화
+          window.kakao.maps.load(() => {
+            const geocoder = new window.kakao.maps.services.Geocoder();
+
+            // 좌표로 주소 검색
+            geocoder.coord2Address(lon, lat, (result, status) => {
+              if (status === window.kakao.maps.services.Status.OK) {
+                if (result && result.length > 0) {
+                  const address = result[0].address;
+                  // "3단계" 지역명 반환 (구/군/시)
+                  const locationName = address.region_3depth_name || address.region_2depth_name;
+                  console.log('지역명 변환 성공:', locationName);
+                  resolve(locationName);
+                } else {
+                  console.error('주소를 찾을 수 없습니다');
+                  reject(new Error('주소를 찾을 수 없습니다'));
+                }
+              } else {
+                console.error('Geocoding 실패:', status);
+                reject(new Error(`Geocoding failed with status: ${status}`));
+              }
+            });
+          });
+        } catch (error) {
+          console.error('Reverse Geocoding 에러:', error);
+          reject(error);
+        }
+      });
+    };
+
+    //** 옷장 히스토리 데이터 가져오기 (2일전, 어제, 오늘)
+    const fetchWardrobeHistory = async (userId, location) => {
+      try {
+        //** 날씨 데이터를 기반으로 온도 정보 가져오기
+        // 실제로는 과거 날씨 데이터를 가져와야 하지만, 
+        // 여기서는 임시로 현재 온도 기준으로 ±2도씩 차이를 줍니다
+        const temperatureHistory = [
+          { date: '2 days ago', temperature: currentTemperature.value - 2 },
+          { date: 'yesterday', temperature: currentTemperature.value },
+          { date: 'today', temperature: currentTemperature.value + 2 }
+        ];
+
+        //** 옷 추천 API 호출
+        const historyData = await wardrobeApi.getWardrobeHistory(userId, temperatureHistory);
+        
+        //** wardrobeHistory 업데이트
+        wardrobeHistory.value = wardrobeHistory.value.map((item, index) => ({
+          ...item,
+          temperature: historyData[index]?.temperature || item.temperature,
+          clothes: historyData[index]?.clothes || []
+        }));
+
+        console.log('옷장 히스토리 로드 성공:', historyData);
+      } catch (error) {
+        console.error('옷장 히스토리 로드 실패:', error);
+      }
+    };
+
+    // 컴포넌트 마운트 시 날씨 데이터 로드
+    onMounted(async () => {
+      try {
+        //1. 사용자 현재 위치 가져오기 (Geolocation API)
+        const userLocation = await getCurrentPosition();
+        console.log('사용자 위치:', userLocation);
+        
+        //2. 위치 기반으로 날씨 데이터 조회
+        await fetchWeatherData(userLocation);
+        
+        // 3. 옷장 히스토리 로드
+        const userId = 1; // 임시 userId (실제로는 로그인 정보에서 가져와야 함)
+        await fetchWardrobeHistory(userId, userLocation);
+        
+      } catch (error) {
+        // 위치 가져오기 실패 시 기본 위치 사용
+        console.error('위치 정보 접근 실패, 기본 위치 사용:', error);
+        await fetchWeatherData('서울');
+        
+        const userId = 1;
+        await fetchWardrobeHistory(userId, '서울');
+      }
       
-      //** 주기적으로 날씨 데이터 업데이트 (10분마다)
-      setInterval(() => {
-        fetchWeatherData(currentLocation.value);
+      // 주기적으로 날씨 데이터 업데이트 (10분마다)
+      setInterval(async () => {
+        try {
+          const userLocation = await getCurrentPosition();
+          await fetchWeatherData(userLocation);
+        } catch (error) {
+          await fetchWeatherData('서울');
+        }
       }, 600000); // 600000ms = 10분
     });
 
     return {
-      currentLocation,
+      currentLocationName,
+      currentCoordinates,
       currentTemperature,
       highestTemp,
       highestLocation,
@@ -189,7 +352,8 @@ export default {
       beforeTemp,
       wardrobeHistory,
       navigateTo,
-      goBack
+      goBack,
+      getCurrentPosition
     };
   }
 };
@@ -300,13 +464,23 @@ export default {
   min-width: 200px;
 }
 
-.location {
+.location-display {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-size: 14px;
   color: #666;
   margin-bottom: 12px;
+}
+
+.location-label {
+  font-weight: 500;
+  color: #888;
+}
+
+.location-name {
+  font-weight: 600;
+  color: #333;
 }
 
 .temperature {
