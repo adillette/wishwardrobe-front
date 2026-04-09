@@ -1,50 +1,65 @@
-import { alarmApi } from './axiosConfig';
+import axios from "axios";
+import "./axiosConfig";
+import { alarmApi } from "./axiosConfig";
 
-// Alarm 서비스 API 함수들
-export const alarmService = {
-  // 알람 목록 조회
-  getAlarms: async () => {
-    try {
-      const response = await alarmApi.get('/alarms');
-      return response.data;
-    } catch (error) {
-      console.error('알람 목록 조회 실패:', error);
-      throw error;
-    }
-  },
+/**
+ * ✅ 공개키 조회
+ */
+async function getPublicKey() {
+  const response = await alarmApi.get('/public-key');
+  return response.data;
+}
 
-  // 알람 생성
-  createAlarm: async (alarmData) => {
-    try {
-      const response = await alarmApi.post('/alarms', alarmData);
-      return response.data;
-    } catch (error) {
-      console.error('알람 생성 실패:', error);
-      throw error;
-    }
-  },
+/**
+ * ✅ 구독 정보 저장
+ * @param {Object} subscription - 구독 정보
+ */
+async function subscribe(subscription) {
+  const response = await alarmApi.post('/subscribe', subscription);
+  return response.data;
+}
 
-  // 알람 수정
-  updateAlarm: async (alarmId, alarmData) => {
-    try {
-      const response = await alarmApi.put(`/alarms/${alarmId}`, alarmData);
-      return response.data;
-    } catch (error) {
-      console.error('알람 수정 실패:', error);
-      throw error;
-    }
-  },
+/**
+ * ✅ 알림 전송
+ * @param {Object} request - { title, message, ... }
+ */
+async function sendNotification(request) {
+  const response = await alarmApi.post('/send', request);
+  return response.data;
+}
 
-  // 알람 삭제
-  deleteAlarm: async (alarmId) => {
-    try {
-      const response = await alarmApi.delete(`/alarms/${alarmId}`);
-      return response.data;
-    } catch (error) {
-      console.error('알람 삭제 실패:', error);
-      throw error;
-    }
-  }
+/**
+ * ✅ 토픽 알림 전송
+ * @param {Object} request - { topic, title, message, ... }
+ */
+async function sendTopicNotification(request) {
+  const response = await alarmApi.post('/send-topic', request);
+  return response.data;
+}
+
+/**
+ * ✅ 토큰 알림 전송
+ * @param {Object} request - { token, title, message, ... }
+ */
+async function sendTokenNotification(request) {
+  const response = await alarmApi.post('/send-token', request);
+  return response.data;
+}
+
+/**
+ * ✅ 브로드캐스트 알림 전송
+ * @param {Object} request - { title, message, ... }
+ */
+async function broadcast(request) {
+  const response = await alarmApi.post('/broadcast', request);
+  return response.data;
+}
+
+export default {
+  getPublicKey,
+  subscribe,
+  sendNotification,
+  sendTopicNotification,
+  sendTokenNotification,
+  broadcast
 };
-
-export default alarmService;

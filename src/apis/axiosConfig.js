@@ -1,52 +1,47 @@
 import axios from "axios";
 
-// Alarm 서비스용 axios 인스턴스 (8081)
-export const alarmApi = axios.create({
-  baseURL: "http://localhost:8081",
-  // timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-});
+// 개발 환경에서는 직접 MSA 서비스 포트로, 운영(Docker) 환경에서는 Nginx 프록시를 통해 접근
+const isDevelopment = process.env.NODE_ENV === 'development';
 
-// Wardrobe 서비스용 axios 인스턴스 (8082)
+const CLOTHES_API_URL = isDevelopment
+  ? 'http://localhost:8081/api'
+  : '/api';
+
+const WEATHER_API_URL = isDevelopment
+  ? 'http://localhost:8082'
+  : '/api/weather';
+
+const NOTIFICATION_API_URL = isDevelopment
+  ? 'http://localhost:8083'
+  : '/api/notification';
+
+// Clothes (Wardrobe) 서비스용 axios 인스턴스 (WebMVC)
 export const wardrobeApi = axios.create({
-  baseURL: "http://localhost:8082",
-  // timeout: 10000,
+  baseURL: CLOTHES_API_URL,
   headers: {
     'Content-Type': 'application/json'
-  }
+  },
+  timeout: 10000
 });
 
-// Weather 서비스용 axios 인스턴스 (8083)
+// Weather 서비스용 axios 인스턴스 (WebFlux)
 export const weatherApi = axios.create({
-  baseURL: "http://localhost:8083",
-  // timeout: 10000,
+  baseURL: WEATHER_API_URL,
   headers: {
     'Content-Type': 'application/json'
-  }
+  },
+  timeout: 10000
 });
 
-// 필요시 인터셉터 추가 예시
-// alarmApi.interceptors.request.use(
-//   config => {
-//     // 요청 전 처리 (예: 토큰 추가)
-//     return config;
-//   },
-//   error => {
-//     return Promise.reject(error);
-//   }
-// );
+// Notification (Alarm) 서비스용 axios 인스턴스 (WebFlux)
+export const alarmApi = axios.create({
+  baseURL: NOTIFICATION_API_URL,
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  timeout: 10000
+});
 
-// alarmApi.interceptors.response.use(
-//   response => {
-//     return response;
-//   },
-//   error => {
-//     // 에러 처리
-//     return Promise.reject(error);
-//   }
-// );
 
 export default {
   alarmApi,

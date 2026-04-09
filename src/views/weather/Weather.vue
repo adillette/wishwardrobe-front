@@ -33,10 +33,10 @@
 
         <div class="location-weather">
           <div class="location-info">
-            <p class="day">Sun</p>
-            <p class="location">Banten, Indonesia</p>
+            <p class="day">{{ currentDateDisplay }}</p>
+            <p class="location">{{ weatherData.location || '위치 정보 없음' }}</p>
           </div>
-          <div class="temp-display">22°C</div>
+          <div class="temp-display">{{ weatherData.temperature ? weatherData.temperature + '°C' : '--°C' }}</div>
         </div>
       </header>
 
@@ -53,24 +53,29 @@
           </div>
           <div class="weather-main">
             <div class="temperature">
-              <h1>22°C</h1>
-              <span class="unit">H°C</span>
+              <h1>{{ weatherData.temperature ? weatherData.temperature + '°C' : '--°C' }}</h1>
+              <span class="unit" v-if="backendWeatherData">
+                (최고: {{ backendWeatherData.maxTemperature }}°C / 최저: {{ backendWeatherData.minTemperature }}°C)
+              </span>
             </div>
             <div class="weather-icon">☀️</div>
           </div>
-          <p class="weather-status">Partly Cloudy</p>
+          <p class="weather-status">{{ weatherData.condition || '날씨 정보 없음' }}</p>
+          <p class="weather-forecast-date" v-if="backendWeatherData">
+            예보 날짜: {{ formatDate(backendWeatherData.forecastDate) }} {{ formatTime(backendWeatherData.forecastTime) }}
+          </p>
           <div class="weather-details">
-            <div class="detail-item">
-              <p class="detail-label">Pressure</p>
-              <p class="detail-value">800mb</p>
+            <div class="detail-item" v-if="backendWeatherData?.precipitationProbability">
+              <p class="detail-label">강수확률</p>
+              <p class="detail-value">{{ backendWeatherData.precipitationProbability }}%</p>
             </div>
-            <div class="detail-item">
-              <p class="detail-label">Visibility</p>
-              <p class="detail-value">4.3 km</p>
+            <div class="detail-item" v-if="weatherData.humidity">
+              <p class="detail-label">습도</p>
+              <p class="detail-value">{{ weatherData.humidity }}%</p>
             </div>
-            <div class="detail-item">
-              <p class="detail-label">Humidity</p>
-              <p class="detail-value">87%</p>
+            <div class="detail-item" v-if="backendWeatherData?.windDirection">
+              <p class="detail-label">풍향</p>
+              <p class="detail-value">{{ backendWeatherData.windDirection }}°</p>
             </div>
           </div>
         </div>
@@ -179,43 +184,62 @@
       <div class="card prediction-card">
         <h3>Weather Prediction</h3>
         <div class="prediction-list">
-          <div class="prediction-item">
-            <span class="icon">☁️</span>
+          <div class="prediction-item" v-if="backendWeatherData">
+            <span class="icon">{{ backendWeatherData.skyCondition === '맑음' ? '☀️' : backendWeatherData.skyCondition === '흐림' ? '☁️' : '🌤️' }}</span>
             <div class="prediction-info">
-              <p class="date">November 10</p>
-              <p class="condition">Cloudy</p>
+              <p class="date">{{ formatDate(backendWeatherData.forecastDate) }}</p>
+              <p class="condition">{{ backendWeatherData.skyCondition || '정보없음' }}</p>
             </div>
             <div class="prediction-temp">
-              <span class="high">26°</span> / <span class="low">19°</span>
+              <span class="high">{{ backendWeatherData.maxTemperature }}°</span> /
+              <span class="low">{{ backendWeatherData.minTemperature }}°</span>
             </div>
           </div>
-          <div class="prediction-item">
-            <span class="icon">☀️</span>
+          <div class="prediction-item" v-else>
+            <span class="icon">☁️</span>
             <div class="prediction-info">
-              <p class="date">November 11</p>
-              <p class="condition">Bright</p>
+              <p class="date">데이터 로딩 중...</p>
+              <p class="condition">위치 정보를 선택하세요</p>
             </div>
             <div class="prediction-temp">
-              <span class="high">28°</span> / <span class="low">20°</span>
+              <span class="high">--°</span> / <span class="low">--°</span>
             </div>
           </div>
         </div>
         <button class="next-days-btn">Next 5 Days</button>
       </div>
+
+     
     </aside>
+
+
+
+
+    
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import { defineOptions } from 'vue'
+import axios from 'axios'
+import weatherApiService from '@/apis/weatherApi'
 
 // 컴포넌트 이름 (선택)
 defineOptions({
   name: 'WeatherDashboard'
 })
 
-// 날씨 관련 데이터 (추후 확장 가능)
+// 백엔드에서 가져온 날씨 데이터 (WeatherForecastDTO)
+const backendWeatherData = ref(null)
+
+// 미세먼지 데이터
+const airQualityData = ref(null)
+
+// 자외선 데이터
+const uvIndexData = ref(null)
+
+// 날씨 관련 데이터 (공공API + 백엔드)
 const weatherData = ref({
   temperature: null,
   location: '',
@@ -224,6 +248,39 @@ const weatherData = ref({
   windSpeed: null
 })
 
+// 날짜 포맷팅 함수
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  const weekdays = ['일', '월', '화', '수', '목', '금', '토']
+  const weekday = weekdays[date.getDay()]
+  return `${month}월 ${day}일 (${weekday})`
+}
+
+// 시간 포맷팅 함수
+const formatTime = (timeString) => {
+  if (!timeString) return ''
+  const hour = parseInt(timeString.substring(0, 2))
+  const minute = timeString.substring(3, 5)
+  const period = hour < 12 ? '오전' : '오후'
+  const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour
+  return `${period} ${displayHour}:${minute}`
+}
+
+// 현재 날짜 표시용 computed
+const currentDateDisplay = computed(() => {
+  if (backendWeatherData.value?.forecastDate) {
+    return formatDate(backendWeatherData.value.forecastDate)
+  }
+  const now = new Date()
+  return formatDate(now.toISOString())
+})
+
+
+
+
 // 위치 정보 관련 데이터
 const locationMessage = ref('Loading...')
 const currentLocation = ref('')
@@ -231,6 +288,14 @@ const userLatitude = ref(null)
 const userLongitude = ref(null)
 let mapClickHandler = null
 let mapContainerEl = null
+
+const WEATHER_API_KEY = process.env.VUE_APP_WEATHER_API_KEY
+
+const loading=ref(false);
+const error=ref(null);
+
+
+
 
 onBeforeUnmount(() => {
   if (mapContainerEl && mapClickHandler) {
@@ -305,7 +370,7 @@ function requestCurrentLocation(map) {
   currentLocation.value = ''
 
   navigator.geolocation.getCurrentPosition(
-    (position) => {
+     async (position) => {
       const lat = position.coords.latitude
       const lon = position.coords.longitude
 
@@ -319,6 +384,7 @@ function requestCurrentLocation(map) {
       currentLocation.value = '현재 위치를 찾았습니다!'
 
       displayMarker(map, locPosition, message)
+      await fetchWeather(lat, lon)
     },
     (error) => {
       console.error('Geolocation error:', error)
@@ -363,6 +429,239 @@ function displayMarker(map, locPosition, message) {
   // 지도 중심좌표를 접속위치로 변경
   map.setCenter(locPosition)
 }
+
+const getAddressFromCoords = (lat, lon) =>
+  new Promise((resolve) => {
+    try {
+      const geocoder = window.kakao?.maps?.services
+        ? new window.kakao.maps.services.Geocoder()
+        : null
+
+      if (!geocoder) return resolve('알 수 없는 위치')
+
+      geocoder.coord2Address(lon, lat, (result, status) => {
+        if (status !== window.kakao.maps.services.Status.OK) return resolve('알 수 없는 위치')
+
+        const addr = result?.[0]?.address
+        if (!addr) return resolve('알 수 없는 위치')
+
+        resolve(`${addr.region_1depth_name} ${addr.region_2depth_name}`)
+      })
+    } catch (e) {
+      console.error('Error getting address:', e)
+      resolve('위치 확인 실패')
+    }
+  })
+
+
+  const convertToGrid = (lat, lon) => {
+  const RE = 6371.00877
+  const GRID = 5.0
+  const SLAT1 = 30.0
+  const SLAT2 = 60.0
+  const OLON = 126.0
+  const OLAT = 38.0
+  const XO = 43
+  const YO = 136
+
+  const DEGRAD = Math.PI / 180.0
+  const re = RE / GRID
+  const slat1 = SLAT1 * DEGRAD
+  const slat2 = SLAT2 * DEGRAD
+  const olon = OLON * DEGRAD
+  const olat = OLAT * DEGRAD
+
+  let sn = Math.tan(Math.PI * 0.25 + slat2 * 0.5) / Math.tan(Math.PI * 0.25 + slat1 * 0.5)
+  sn = Math.log(Math.cos(slat1) / Math.cos(slat2)) / Math.log(sn)
+
+  let sf = Math.tan(Math.PI * 0.25 + slat1 * 0.5)
+  sf = Math.pow(sf, sn) * Math.cos(slat1) / sn
+
+  let ro = Math.tan(Math.PI * 0.25 + olat * 0.5)
+  ro = re * sf / Math.pow(ro, sn)
+
+  let ra = Math.tan(Math.PI * 0.25 + lat * DEGRAD * 0.5)
+  ra = re * sf / Math.pow(ra, sn)
+
+  let theta = lon * DEGRAD - olon
+  if (theta > Math.PI) theta -= 2.0 * Math.PI
+  if (theta < -Math.PI) theta += 2.0 * Math.PI
+  theta *= sn
+
+  const x = Math.floor(ra * Math.sin(theta) + XO + 0.5)
+  const y = Math.floor(ro - ra * Math.cos(theta) + YO + 0.5)
+
+  return { x, y }
+}
+
+
+const getWeatherDescription = (pty, sky) => {
+  if (pty === '0') {
+    if (sky === '1') return '맑음'
+    if (sky === '3') return '구름 많음'
+    if (sky === '4') return '흐림'
+  }
+  if (pty === '1') return '비'
+  if (pty === '2') return '비/눈'
+  if (pty === '3') return '눈'
+  if (pty === '4') return '소나기'
+  return '알 수 없음'
+}
+const getBaseDateTimeForUltra = (now = new Date()) => {
+  // 초단기 실황/예보는 보통 매시 40분 이후 데이터가 안정적이라
+  // 0~39분이면 이전 시간으로 보정
+  const d = new Date(now)
+  if (d.getMinutes() < 40) d.setHours(d.getHours() - 1)
+
+  const baseDate = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`
+  const baseTime = `${String(d.getHours()).padStart(2, '0')}00`
+  return { baseDate, baseTime }
+}
+
+// 백엔드 API로 날씨 정보 조회
+const fetchWeatherFromBackend = async (locationName) => {
+  try {
+    loading.value = true
+    error.value = null
+
+    console.log('백엔드 API 호출:', locationName)
+    const data = await weatherApiService.getWeatherByLocation(locationName)
+
+    backendWeatherData.value = data
+    console.log('백엔드에서 받은 날씨 데이터:', data)
+
+    // 화면에 표시할 데이터 업데이트
+    weatherData.value = {
+      ...weatherData.value,
+      temperature: data.maxTemperature || data.minTemperature,
+      humidity: data.humidity,
+      location: `${data.province} ${data.county} ${data.district}`,
+      condition: data.skyCondition || data.precipitationType
+    }
+
+  } catch (e) {
+    console.error('백엔드 API 호출 오류:', e)
+    error.value = '백엔드에서 날씨 정보를 불러오는데 실패했습니다.'
+  } finally {
+    loading.value = false
+  }
+}
+
+const fetchWeather = async (latitude, longitude) => {
+  try {
+    loading.value = true
+    error.value = null
+
+    console.log('위경도로 통합 날씨 조회:', latitude, longitude)
+    
+    // ✅ 새 API 호출 (날씨 + 미세먼지 + 자외선 한 번에!)
+    const result = await weatherApiService.getIntegratedWeatherByCoordinates(latitude, longitude)
+    
+    const data = result.data
+    console.log('통합 날씨 데이터:', data)
+
+    // 화면에 표시할 데이터 업데이트
+    backendWeatherData.value = data.weather  // 날씨 정보
+    airQualityData.value = data.airQuality    // 미세먼지 정보 (새로 추가!)
+    uvIndexData.value = data.uvIndex          // 자외선 정보 (새로 추가!)
+
+    weatherData.value = {
+      temperature: data.weather?.maxTemperature || data.weather?.minTemperature,
+      humidity: data.weather?.humidity,
+      location: data.location,
+      condition: data.weather?.skyCondition || data.weather?.precipitationType || '날씨 정보 없음'
+    }
+
+    const address = await getAddressFromCoords(latitude, longitude)
+    currentLocation.value = address
+
+  } catch (e) {
+    console.error('통합 날씨 조회 실패:', e)
+    error.value = '날씨 정보를 불러오는데 실패했습니다.'
+  } finally {
+    loading.value = false
+  }
+}
+
+// 백엔드 실패 시 공공API로 폴백
+const fetchWeatherFallback = async (latitude, longitude) => {
+  try {
+    const address = await getAddressFromCoords(latitude, longitude)
+    const { x, y } = convertToGrid(latitude, longitude)
+
+    const { baseDate, baseTime } = getBaseDateTimeForUltra(new Date())
+
+    // 공공API로 실시간 날씨 정보 가져오기
+    const [ncstResponse, fcstResponse, villageFcstResponse] = await Promise.all([
+      axios.get('https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst', {
+        params: {
+          serviceKey: WEATHER_API_KEY,
+          numOfRows: '10',
+          pageNo: '1',
+          dataType: 'JSON',
+          base_date: baseDate,
+          base_time: baseTime,
+          nx: x,
+          ny: y
+        }
+      }),
+      axios.get('https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtFcst', {
+        params: {
+          serviceKey: WEATHER_API_KEY,
+          numOfRows: '60',
+          pageNo: '1',
+          dataType: 'JSON',
+          base_date: baseDate,
+          base_time: baseTime,
+          nx: x,
+          ny: y
+        }
+      }),
+      axios.get('https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst', {
+        params: {
+          serviceKey: WEATHER_API_KEY,
+          numOfRows: '1000',
+          pageNo: '1',
+          dataType: 'JSON',
+          base_date: baseDate,
+          base_time: '0500',
+          nx: x,
+          ny: y
+        }
+      })
+    ])
+
+    const ncstItems = ncstResponse.data?.response?.body?.items?.item ?? []
+    const fcstItems = fcstResponse.data?.response?.body?.items?.item ?? []
+    const villageFcstItems = villageFcstResponse.data?.response?.body?.items?.item ?? []
+
+    const temp = ncstItems.find((i) => i.category === 'T1H')?.obsrValue ?? null
+    const humidity = ncstItems.find((i) => i.category === 'REH')?.obsrValue ?? null
+    const rainType = ncstItems.find((i) => i.category === 'PTY')?.obsrValue ?? '0'
+    const sky = fcstItems.find((i) => i.category === 'SKY')?.fcstValue ?? '1'
+
+    weatherData.value = {
+      ...weatherData.value,
+      temperature: temp,
+      humidity,
+      location: address,
+      condition: getWeatherDescription(rainType, sky)
+    }
+
+    // 백엔드 API도 함께 호출 (동 이름 추출)
+    const dongName = address.split(' ').pop()
+    if (dongName) {
+      await fetchWeatherFromBackend(dongName)
+    }
+
+  } catch (e) {
+    console.error(e)
+    error.value = '날씨 정보를 불러오는데 실패했습니다.'
+  } finally {
+    loading.value = false
+  }
+}
+
 </script>
 
 <style scoped>
@@ -655,7 +954,14 @@ background-color: #999;
 .weather-status {
   font-size: 14px;
   color: var(--primary-dark);
-  margin: 10px 0 20px 0;
+  margin: 10px 0 10px 0;
+}
+
+.weather-forecast-date {
+  font-size: 12px;
+  color: var(--primary-medium);
+  margin: 0 0 20px 0;
+  font-style: italic;
 }
 
 .weather-details {

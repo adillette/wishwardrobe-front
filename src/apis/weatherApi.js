@@ -38,7 +38,30 @@ async function getWeatherByCoordinates(latitude, longitude) {
   }
 }
 
+/**
+ * ✅ 통합 날씨 정보 조회 (병렬)
+ */
+async function getIntegratedWeatherParallel(location, station, areaNo) {
+  const startTime = performance.now();
+  try {
+    const response = await weatherApi.get('/api/v1/weather/integrated', {
+      params: { location, station, areaNo }
+    });
+    const endTime = performance.now();
+    console.log(`⚡ 병렬 조회 완료: ${(endTime - startTime).toFixed(2)}ms`);
+    return { data: response.data, time: endTime - startTime };
+  } catch (error) {
+    console.error('병렬 조회 실패:', error);
+    throw error;
+  }
+}
+
+
+
+
 export default {
   getWeatherByLocation,
-  getWeatherByCoordinates
+  getWeatherByCoordinates,
+  
+  getIntegratedWeatherParallel
 };
