@@ -12,8 +12,8 @@ RUN npm install
 # 소스 코드 복사
 COPY . .
 
-# 프로덕션 빌드
-RUN npm run build
+# 프로덕션 메모리 제한 늘려서 빌드
+RUN node --max-old-space-size=1024 node_modules/@vue/cli-service/bin/vue-cli-service.js build
 
 # Production stage
 FROM nginx:stable-alpine as production-stage
