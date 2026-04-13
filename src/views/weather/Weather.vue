@@ -29,7 +29,9 @@
           <button class="search-btn">🔍</button>
         </div>
 
-        <button class="notification-btn">🔔</button>
+        <button class="notification-btn" @click="subscribePush">
+          {{ isSubscribed ? '🔔✓':'🔔' }}
+        </button>
 
         <div class="location-weather">
           <div class="location-info">
@@ -278,9 +280,6 @@ const currentDateDisplay = computed(() => {
   return formatDate(now.toISOString())
 })
 
-
-
-
 // 위치 정보 관련 데이터
 const locationMessage = ref('Loading...')
 const currentLocation = ref('')
@@ -294,7 +293,57 @@ const WEATHER_API_KEY = process.env.VUE_APP_WEATHER_API_KEY
 const loading=ref(false);
 const error=ref(null);
 
+//webPush 구독 관련
+const isSubscribed=ref(false);
+const subscribePush=async()=> {
+  try{
+     // 1. 브라우저 푸시 알림 지원 확인
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      alert('이 브라우저는 푸시 알림을 지원하지 않습니다.')
+      return
+    }
 
+    // 2. 알림 권한 요청
+    const permission = await Notification.requestPermission()
+    if (permission !== 'granted') {
+      alert('알림 권한이 거부되었습니다.')
+      return
+    }
+
+    //3. 서비스 워커 등록
+    const registration =await navigator.serviceWorker.register('/service-worker.js')
+    await navigator.serviceWorker.ready
+
+    //4. 백엔드에서 vapid public key 가져오기
+    const res = await axios.get('/api/notification/public-key')
+    const vapidPublicKey= res.data
+   
+    //5. VAPID key
+    const convertedKey= urlBase64ToUint8Array(vapidPublicKey)
+    
+    //6. 브라우저 PushSubscription 생성
+    const subscrption= await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: convertedKey
+    })
+
+    //7. 백엔드에 구독 정보 저장
+    await axios.post('/api/notification/subscribe',subscrption.toJSON())
+    isSubscribed.value=true
+    alert('푸시 알림 구독 완료!')
+  
+  }catch(e){
+      console.error('푸시 구독 실패:',e)
+      alert('푸시 구독 실패:'+e.message)
+  }
+
+  const urlBase64ToUint8Array=(base64String)=>{
+    const padding='='.repeat((4-base64String.length%4)%4)
+    const base64 =(base64String+padding).replace(/-/g,'+').replace(/_/g,'/')
+    const rawData=window.atob(base64)
+    return new Uint8Array([...rawData].map(c => c.charCodeAt(0)))
+  }
+}
 
 
 onBeforeUnmount(() => {
@@ -554,7 +603,7 @@ const fetchWeather = async (latitude, longitude) => {
 
     console.log('위경도로 통합 날씨 조회:', latitude, longitude)
     
-    // ✅ 새 API 호출 (날씨 + 미세먼지 + 자외선 한 번에!)
+    // 새 API 호출 (날씨 + 미세먼지 + 자외선 한 번에!)
     const result = await weatherApiService.getIntegratedWeatherByCoordinates(latitude, longitude)
     
     const data = result.data
