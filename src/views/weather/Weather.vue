@@ -292,7 +292,13 @@ const WEATHER_API_KEY = process.env.VUE_APP_WEATHER_API_KEY
 
 const loading=ref(false);
 const error=ref(null);
-
+const urlBase64ToUint8Array=(base64String)=>{
+    const padding='='.repeat((4-base64String.length%4)%4)
+    const base64 =(base64String+padding).replace(/-/g,'+').replace(/_/g,'/')
+    const rawData=window.atob(base64)
+    return new Uint8Array([...rawData].map(c => c.charCodeAt(0)))
+  }
+  
 //webPush 구독 관련
 const isSubscribed=ref(false);
 const subscribePush=async()=> {
@@ -337,12 +343,7 @@ const subscribePush=async()=> {
       alert('푸시 구독 실패:'+e.message)
   }
 
-  const urlBase64ToUint8Array=(base64String)=>{
-    const padding='='.repeat((4-base64String.length%4)%4)
-    const base64 =(base64String+padding).replace(/-/g,'+').replace(/_/g,'/')
-    const rawData=window.atob(base64)
-    return new Uint8Array([...rawData].map(c => c.charCodeAt(0)))
-  }
+  
 }
 
 
