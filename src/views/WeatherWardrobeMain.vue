@@ -54,7 +54,9 @@
         <h1 class="main-title">
           Today's<br>weather<br>and<br>wardrobe
         </h1>
-
+        <button @click="toggleNotification">
+          {{ notificationEnabled ? '🔔 알림 켜짐' : '🔕 알림 꺼짐' }}
+        </button>
         <!-- 현재 날씨 카드 -->
         <div class="current-weather-card">
           <div class="location-display" v-if="currentLocationName">
@@ -101,16 +103,16 @@
             <div class="detail-card">
               <div class="detail-label">Highest</div>
               <div class="detail-value">{{ highestTemp }}°C</div>
-              <div class="detail-location">{{ highestLocation }}</div>
+             
             </div>
             <div class="detail-card">
               <div class="detail-label">low</div>
               <div class="detail-value">{{ lowestTemp }}°C</div>
-              <div class="detail-location">{{ lowestLocation }}</div>
+             
             </div>
             <div class="detail-card">
               <div class="detail-label">Before</div>
-              <div class="detail-value">{{ beforeTemp }}°C</div>
+              
             </div>
           </div>
         </div>
@@ -123,20 +125,72 @@
 import { ref, onMounted } from 'vue';
 import wardrobeApi from '@/apis/wardrobeApi';
 import weatherApi from '@/apis/weatherApi';
+import { getCurrentUserId } from '@/constants/user';
+import locationApi from '@/apis/locationApi';
+import { enableNotification } from '@/services/pushSetup';
+
 
 export default {
   name: 'WeatherWardrobe',
   setup() {
+
+    //개발 모드
+    //userId 1: webpush 전용 userId 2: fcm 전용
+    const USER_ID= getCurrentUserId();
+    const notificationEnabled=ref(false);
+
+
     // 반응형 상태 변수들 정의
     const currentCoordinates = ref({ lat: 37.5665, lon: 126.9780 }); // 서울 기본 좌표
     const currentLocationName = ref(''); // 백엔드에서 받아온 위치명
     const currentTemperature = ref(10);
     const highestTemp = ref(12);
-    const highestLocation = ref('Incheon');
+
     const lowestTemp = ref(0);
-    const lowestLocation = ref('Busan');
-    const beforeTemp = ref('+5');
+  
     
+    const syncNotificationLocation = async ()=>{
+      try {
+        const saved = await locationApi.getLocation(USER_ID);
+        notificationEnabled.value = saved?.enabled ?? false;
+         if (notificationEnabled.value) {
+            await locationApi.updateLocation(
+              USER_ID,
+              currentCoordinates.value.lat,
+              currentCoordinates.value.lon,
+              true
+            );
+          }
+
+      } catch (error) {
+        console.error('알림 위치 동기화 실패:', error);
+      }
+    };
+
+    const toggleNotification = async () =>{
+      try {
+        if(!notificationEnabled.value){
+          const {locationSaved} = await enableNotification(
+        currentCoordinates.value.lat,
+        currentCoordinates.value.lon
+      );notificationEnabled.value = locationSaved;
+        }else{
+          await locationApi.updateLocation(
+            USER_ID,
+            currentCoordinates.value.lat,
+            currentCoordinates.value.lon,
+            false
+          );
+          notificationEnabled.value = false;
+        }
+      } catch (error) {
+         console.error('알림 설정 변경 실패:', error);
+        alert('알림 설정 실패: ' + error.message);
+      }
+    }
+
+
+
     //** 옷차림 히스토리 데이터
     const wardrobeHistory = ref([
       {
@@ -243,7 +297,7 @@ export default {
       return new Promise((resolve, reject) => {
         try {
           // Kakao Maps SDK 로드 확인
-          if (!window.kakao || !window.kakao.maps) {
+          if (!window.kakao) {
             console.error('Kakao Maps SDK가 로드되지 않았습니다');
             reject(new Error('Kakao Maps SDK not loaded'));
             return;
@@ -280,24 +334,34 @@ export default {
     };
 
     //** 옷장 히스토리 데이터 가져오기 (2일전, 어제, 오늘)
-    const fetchWardrobeHistory = async (userId, location) => {
+    const fetchWardrobeHistory = async (userId) => {
       try {
-        //** 날씨 데이터를 기반으로 온도 정보 가져오기
-        // 실제로는 과거 날씨 데이터를 가져와야 하지만, 
-        // 여기서는 임시로 현재 온도 기준으로 ±2도씩 차이를 줍니다
-        const temperatureHistory = [
+        //** 과거(2일전, 어제)는 실제 과거 날씨 데이터가 없으므로
+        // 임시로 현재 온도 기준으로 ±2도씩 차이를 줍니다
+        const pastTemperatureHistory = [
           { date: '2 days ago', temperature: currentTemperature.value - 2 },
-          { date: 'yesterday', temperature: currentTemperature.value },
-          { date: 'today', temperature: currentTemperature.value + 2 }
+          { date: 'yesterday', temperature: currentTemperature.value }
         ];
 
-        //** 옷 추천 API 호출
-        const historyData = await wardrobeApi.getWardrobeHistory(userId, temperatureHistory);
-        
+        //** 오늘은 현재 위경도 기반으로 Weather Service를 연동한 추천을 바로 받아옴 (MSA 방식)
+        const [pastHistoryData, todayClothes] = await Promise.all([
+          wardrobeApi.getWardrobeHistory(userId, pastTemperatureHistory),
+          wardrobeApi.getRecommendedClothesByCoordinates(
+            userId,
+            currentCoordinates.value.lat,
+            currentCoordinates.value.lon
+          )
+        ]);
+
+        const historyData = [
+          ...pastHistoryData,
+          { date: 'today', temperature: currentTemperature.value, clothes: todayClothes }
+        ];
+
         //** wardrobeHistory 업데이트
         wardrobeHistory.value = wardrobeHistory.value.map((item, index) => ({
           ...item,
-          temperature: historyData[index]?.temperature || item.temperature,
+          temperature: historyData[index]?.temperature ?? item.temperature,
           clothes: historyData[index]?.clothes || []
         }));
 
@@ -317,17 +381,19 @@ export default {
         //2. 위치 기반으로 날씨 데이터 조회
         await fetchWeatherData(userLocation);
         
-        // 3. 옷장 히스토리 로드
-        const userId = 1; // 임시 userId (실제로는 로그인 정보에서 가져와야 함)
-        await fetchWardrobeHistory(userId, userLocation);
-        
+         //3. 서버에 저장된 알림 설정 동기화
+        await syncNotificationLocation();
+
+        // 4. 옷장 히스토리 로드
+        await fetchWardrobeHistory(USER_ID);
+
       } catch (error) {
         // 위치 가져오기 실패 시 기본 위치 사용
         console.error('위치 정보 접근 실패, 기본 위치 사용:', error);
         await fetchWeatherData('서울');
-        
-        const userId = 1;
-        await fetchWardrobeHistory(userId, '서울');
+
+        await fetchWardrobeHistory(USER_ID);
+
       }
       
       // 주기적으로 날씨 데이터 업데이트 (10분마다)
@@ -346,14 +412,16 @@ export default {
       currentCoordinates,
       currentTemperature,
       highestTemp,
-      highestLocation,
+     
       lowestTemp,
-      lowestLocation,
-      beforeTemp,
+      
+     
       wardrobeHistory,
       navigateTo,
       goBack,
-      getCurrentPosition
+      getCurrentPosition,
+      notificationEnabled,
+      toggleNotification
     };
   }
 };
