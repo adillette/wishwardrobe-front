@@ -269,7 +269,7 @@ const wardrobeItems = ref([])
 const isLoading = ref(false)
 
 // 기본 이미지
-const defaultImage = 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=600'
+const defaultImage = 'https://i.pinimg.com/736x/cc/5c/12/cc5c12094bc8ac0cc6658d22320a9bd1.jpg'
 
 // 선택된 아이템
 const selectedItem = ref(null)
@@ -428,31 +428,22 @@ const handleSubmit = async () => {
   isSubmitting.value = true
   errorMessage.value = ''
 
-  try {
-    // 백엔드로 전송할 데이터 (base64 이미지 URL 사용)
-    const clothesData = {
-      userId: userId.value,
-      name: formData.value.name,
-      category: formData.value.category,
-      tempRange: formData.value.tempRange,
-      imageUrl: previewImage.value // base64 DataURL
-    }
+  try{
+    const clothesFormData = new FormData()
+    clothesFormData.append('userId',userId.value)
+    clothesFormData.append('name', formData.value.name)
+    clothesFormData.append('category', formData.value.category)
+    clothesFormData.append('tempRange', formData.value.tempRange)
+    clothesFormData.append('image', formData.value.imageFile)
+    await wardrobeApi.addClothes(clothesFormData)
 
-    // 백엔드 API 호출
-    await wardrobeApi.addClothes(clothesData)
-    
-    // 성공 후 처리
     alert('옷이 성공적으로 등록되었습니다!')
-    
-    // 목록 다시 로드
     await fetchClothes()
-    
     closeModal()
-
-  } catch (error) {
+  }catch(error){
     console.error('옷 등록 실패:', error)
     errorMessage.value = error.response?.data?.message || '등록 중 오류가 발생했습니다'
-  } finally {
+  }finally {
     isSubmitting.value = false
   }
 }

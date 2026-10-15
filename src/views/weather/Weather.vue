@@ -105,81 +105,38 @@
           
             <div class="chart-labels">
               <div class="label">
-                <span class="icon">☁️</span>
-                <p class="temp">20°</p>
-                <p class="time">Morning</p>
-              </div>
-              <div class="label">
-                <span class="icon">☀️</span>
-                <p class="temp">34°</p>
-                <p class="time">Afternoon</p>
-              </div>
-              <div class="label">
-                <span class="icon">🌤️</span>
-                <p class="temp">28°</p>
-                <p class="time">Evening</p>
+                <span class="icon">{{ backendWeatherData?.skyCondition === '맑음' ? '☀️' : backendWeatherData?.skyCondition === '흐림' ? '☁️' : '🌤️' }}</span>
+                <p class="temp">{{ backendWeatherData?.maxTemperature ?? '--' }}°</p>
+                <p class="time">Highest</p>
               </div>
               <div class="label">
                 <span class="icon">🌙</span>
-                <p class="temp">22°</p>
-                <p class="time">Night</p>
+                <p class="temp">{{ backendWeatherData?.minTemperature ?? '--' }}°</p>
+                <p class="time">Lowest</p>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Tomorrow Weather Card -->
-        <div class="card tomorrow-card">
-          <p class="tomorrow-label">Tomorrow</p>
-          <h2 class="location-name">Alam Barzah</h2>
-          <div class="tomorrow-weather">
-            <div class="umbrella-icon">☂️</div>
-            <div class="tomorrow-temp">20°C</div>
-          </div>
-          <p class="weather-condition">Rainy</p>
-        </div>
       </div>
     </main>
 
     <!-- Right Sidebar -->
     <aside class="right-sidebar">
-      <!-- Sunset/Sunrise Card -->
-      <div class="card sunset-card">
-        <div class="sun-chart">
-          <svg viewBox="0 0 200 100">
-            <path
-              d="M 20,80 Q 100,20 180,80"
-              fill="none"
-              stroke="#DCD0A8"
-              stroke-width="2"
-              stroke-dasharray="5,5"
-            />
-            <circle cx="180" cy="80" r="8" fill="#DCD0A8" />
-            <text x="100" y="50" text-anchor="middle" font-size="20">☀️</text>
-          </svg>
-        </div>
-        <div class="sun-times">
-          <div class="sun-time">
-            <p class="label">Sunset</p>
-            <p class="time">08:00 am</p>
-          </div>
-          <div class="sun-time">
-            <p class="label">Sunrise</p>
-            <p class="time">04:43 am</p>
-          </div>
-        </div>
-      </div>
+
 
       <!-- UV Index Card -->
       <div class="card uv-card">
         <div class="uv-content">
           <span class="uv-icon">☀️</span>
           <div class="uv-info">
-            <h2>20 UVI</h2>
-            <span class="uv-badge">Moderate</span>
+             <h2>{{ uvIndexData?.todayIndex ?? '--' }} UVI</h2>
+            <span class="uv-badge" :style="{ backgroundColor: uvBadgeInfo.color }">
+              {{ uvBadgeInfo.text }}
+            </span>
           </div>
         </div>
-        <p class="uv-description">Moderate risk of from UV rays</p>
+        <p class="uv-description">{{ uvIndexData?.recommendation || '자외선 정보를 불러오는 중입니다' }}</p>
       </div>
 
       <!-- Weather Prediction -->
@@ -226,6 +183,7 @@ import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import { defineOptions } from 'vue'
 import axios from 'axios'
 import weatherApiService from '@/apis/weatherApi'
+import { enableNotification } from '@/services/pushSetup'
 
 // 컴포넌트 이름 (선택)
 defineOptions({
@@ -292,55 +250,21 @@ const WEATHER_API_KEY = process.env.VUE_APP_WEATHER_API_KEY
 
 const loading=ref(false);
 const error=ref(null);
-const urlBase64ToUint8Array=(base64String)=>{
-    const padding='='.repeat((4-base64String.length%4)%4)
-    const base64 =(base64String+padding).replace(/-/g,'+').replace(/_/g,'/')
-    const rawData=window.atob(base64)
-    return new Uint8Array([...rawData].map(c => c.charCodeAt(0)))
-  }
+
   
 //webPush 구독 관련
 const isSubscribed=ref(false);
 const subscribePush=async()=> {
-  try{
-     // 1. 브라우저 푸시 알림 지원 확인
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      alert('이 브라우저는 푸시 알림을 지원하지 않습니다.')
-      return
-    }
-
-    // 2. 알림 권한 요청
-    const permission = await Notification.requestPermission()
-    if (permission !== 'granted') {
-      alert('알림 권한이 거부되었습니다.')
-      return
-    }
-
-    //3. 서비스 워커 등록
-    const registration =await navigator.serviceWorker.register('/service-worker.js')
-    await navigator.serviceWorker.ready
-
-    //4. 백엔드에서 vapid public key 가져오기
-    const res = await axios.get('/api/notification/public-key')
-    const vapidPublicKey= res.data
-   
-    //5. VAPID key
-    const convertedKey= urlBase64ToUint8Array(vapidPublicKey)
-    
-    //6. 브라우저 PushSubscription 생성
-    const subscrption= await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: convertedKey
-    })
-
-    //7. 백엔드에 구독 정보 저장
-    await axios.post('/api/notification/subscribe',subscrption.toJSON())
+  try {
+    const{ channel,locationSaved } = await enableNotification(
+      userLatitude.value , userLongitude.value
+    )
     isSubscribed.value=true
-    alert('푸시 알림 구독 완료!')
-  
-  }catch(e){
-      console.error('푸시 구독 실패:',e)
-      alert('푸시 구독 실패:'+e.message)
+    alert(`알림 설정 완료 (${channel === 'FCM' ? '모바일 FCM' : 'PC WebPush'})`)
+    if (!locationSaved) alert('지도를 클릭해 위치를 불러와야 아침 알림 위치가 저장돼요.')
+  } catch (e) {
+    console.error('알림 설정 실패:', e)
+    alert('알림 설정 실패: ' + e.message)
   }
 
   
@@ -632,6 +556,18 @@ const fetchWeather = async (latitude, longitude) => {
     loading.value = false
   }
 }
+
+const uvBadgeInfo= computed(() =>{
+  const index = uvIndexData.value?.todayIndex
+  if(index ==null) return {text:'정보 없음', color:'#999'}
+  if (index <= 2)  return { text: '보호조치 불필요', color: '#4A9782' }   // 낮음 - 초록
+  if (index <= 5)  return { text: '선글라스 권장',   color: '#DCD0A8' }   // 보통 - 노랑
+  if (index <= 7)  return { text: '선글라스 필수',   color: '#E8A03C' }   // 높음 - 주황
+  if (index <= 10) return { text: '실내활동 권장',   color: '#D9534F' }   // 매우높음 - 빨강
+  return                  { text: '외출 자제',       color: '#8B0000' }   // 위험 - 진한 빨강
+})
+
+
 
 // 백엔드 실패 시 공공API로 폴백
 const fetchWeatherFallback = async (latitude, longitude) => {
@@ -1194,36 +1130,9 @@ background-color: #999;
   background-color: #FFF9E5;
 }
 
-/* Sunset Card */
-.sunset-card {
-  background: #ffffff;
-  margin-top: 20px;
-}
 
-.sun-chart svg {
-  width: 100%;
-  height: 100px;
-  margin-bottom: 20px;
-}
 
-.sun-times {
-  display: flex;
-  justify-content: space-between;
-}
 
-.sun-time .label {
-  font-size:20px;
-  font-weight: 700;
-  color: var(--primary-medium);
-  margin: 0 0 4px 0;
-}
-
-.sun-time .time {
-  font-size: 25px;
-  font-weight: 700;
-  color: var(--primary-dark);
-  margin: 0;
-}
 
 /* UV Card */
 .uv-card {
