@@ -9,11 +9,16 @@ const CLOTHES_API_URL = isDevelopment
 
 const WEATHER_API_URL = isDevelopment
   ? 'http://localhost:8082'
-  : '/api/weather';
+  : '/api';
 
 const NOTIFICATION_API_URL = isDevelopment
   ? 'http://localhost:8083'
   : '/api/notification';
+
+
+const USER_LOCATION_API_URL = isDevelopment
+ ? 'http://localhost:8083/api/user-location'
+  : '/api/user-location';
 
 // Clothes (Wardrobe) 서비스용 axios 인스턴스 (WebMVC)
 export const wardrobeApi = axios.create({
@@ -42,9 +47,15 @@ export const alarmApi = axios.create({
   timeout: 10000
 });
 
+export const userLocationApi = axios.create({
+  baseURL: USER_LOCATION_API_URL,
+  headers: { 'Content-Type' : 'application/json' },
+  timeout: 10000
+})
 
 export default {
   alarmApi,
   wardrobeApi,
-  weatherApi
+  weatherApi,
+  userLocationApi
 };
