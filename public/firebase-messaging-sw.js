@@ -21,11 +21,11 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage((payload) => {
     console.log('백그라운드 메시지 수신:', payload);
     
-    const notificationTitle = payload.notification.title;
-    const notificationOptions = {
-        body: payload.notification.body,
-        icon: payload.notification.icon || '/firebase-logo.png'
-    };
-
-    self.registration.showNotification(notificationTitle, notificationOptions);
+    const { title, body } = payload.data || {};
+    if(title){
+         self.registration.showNotification(title, {
+            body,
+            icon:'/firebase-logo.png'
+        })
+    }
 });
