@@ -13,61 +13,32 @@
         </div>
         
         <div class="weather-display">
-          <h1 class="time">9:00 am</h1>
-          <p class="weather-condition">Sunny morning</p>
+          <h1 class="time">{{ currentTimeText }}</h1>
+          <p class="weather-condition">{{ conditionInfo.label }} · {{ currentLocationName || '위치 확인 중' }}</p>
           
-          <!-- SVG 태양 아이콘 직접 작성 -->
           <div class="sun-icon">
-            <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="60" cy="60" r="25" fill="#FFD700"/>
-              <g stroke="#FFD700" stroke-width="3" stroke-linecap="round">
-                <line x1="60" y1="15" x2="60" y2="25"/>
-                <line x1="60" y1="95" x2="60" y2="105"/>
-                <line x1="15" y1="60" x2="25" y2="60"/>
-                <line x1="95" y1="60" x2="105" y2="60"/>
-                <line x1="25.86" y1="25.86" x2="32.93" y2="32.93"/>
-                <line x1="87.07" y1="87.07" x2="94.14" y2="94.14"/>
-                <line x1="25.86" y1="94.14" x2="32.93" y2="87.07"/>
-                <line x1="87.07" y1="32.93" x2="94.14" y2="25.86"/>
-              </g>
-            </svg>
+            <span class="condition-emoji">{{ conditionInfo.emoji }}</span>
           </div>
           
-          <h2 class="temperature">15°C</h2>
+          <h2 class="temperature">{{ currentTemperature }}°C</h2>
           
           <div class="temperature-cards">
             <div class="temp-card yesterday">
-              <h3>Yesterday</h3>
+              <h3>lowest</h3>
               <div class="temp-card-content">
-                <div class="temp-icon">
-                  <!-- SVG 비 아이콘 -->
-                  <svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M38 18c0-9.4-7.6-17-17-17S4 8.6 4 18c0 4.4 1.7 8.4 4.4 11.4" stroke="#4A9782" stroke-width="2" fill="#4A9782" opacity="0.7"/>
-                    <path d="M46 22c0-4.4-3.6-8-8-8s-8 3.6-8 8c0 2.2.9 4.2 2.3 5.7" stroke="#4A9782" stroke-width="2" fill="#4A9782" opacity="0.7"/>
-                    <line x1="16" y1="32" x2="14" y2="38" stroke="#4A9782" stroke-width="2"/>
-                    <line x1="24" y1="34" x2="22" y2="40" stroke="#4A9782" stroke-width="2"/>
-                    <line x1="32" y1="32" x2="30" y2="38" stroke="#4A9782" stroke-width="2"/>
-                  </svg>
-                </div>
+                <div class="temp-icon"><span class="small-emoji">🥶</span></div>
                 <div class="temp-details">
-                  <p>High 10°c</p>
-                  <p>Low 5°c</p>
+                  <p>Low {{ lowestTemp }}°c</p>
                 </div>
               </div>
             </div>
             
             <div class="temp-card today">
-              <h3>Today</h3>
+              <h3>highest</h3>
               <div class="temp-card-content">
-                <div class="temp-icon">
-                  <!-- SVG 번개 아이콘 -->
-                  <svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M30 5L12 25h8l-8 20 18-20h-8l8-20z" fill="#FFD700"/>
-                  </svg>
-                </div>
+                <div class="temp-icon"><span class="small-emoji">🔥</span></div>
                 <div class="temp-details">
-                  <p>High 20°c</p>
-                  <p>Low 11°c</p>
+                  <p>High {{ highestTemp }}°c</p>
                 </div>
               </div>
             </div>
@@ -91,7 +62,9 @@
                 
                 <div class="wardrobe-item">
                   <!-- 실제 상의 이미지 -->
-                  <img src="/images/여성상의3.png" alt="흰색 블라우스" class="clothing-image" />
+                  <img v-if="currentTop?.imageUrl" :src="currentTop.imageUrl" :alt="currentTop.name" class="clothing-image" />
+                  <p v-else class="no-clothes">추천 상의 없음</p>
+                  <p v-if="currentTop" class="clothing-name">{{ currentTop.name }}</p>
                 </div>
                 
                 <button class="nav-btn next" @click="nextOutfit">
@@ -107,7 +80,8 @@
               <h2 class="section-title">my Acc</h2>
               <div class="accessory-item">
                 <!-- 실제 가방 이미지 -->
-                <img src="/images/bag.png" alt="검은색 가방" class="clothing-image" />
+                <img v-if="recommended.accessory?.imageUrl" :src="recommended.accessory.imageUrl" :alt="recommended.accessory.name" class="clothing-image" />
+                <p v-else class="no-clothes">추천 없음</p>
               </div>
             </div>
             
@@ -115,7 +89,8 @@
               <h2 class="section-title">Bottom</h2>
               <div class="bottom-item">
                 <!-- 실제 하의 이미지 -->
-                <img src="/images/pants2.png" alt="청바지" class="clothing-image" />
+                <img v-if="recommended.bottom?.imageUrl" :src="recommended.bottom.imageUrl" :alt="recommended.bottom.name" class="clothing-image" />
+                <p v-else class="no-clothes">추천 없음</p>
               </div>
             </div>
           </div>
@@ -124,54 +99,10 @@
         <!-- 날씨 예보 영역 (하단 1 비율) - 개별 카드 형태로 수정 -->
         <div class="forecast-area">
           <div class="forecast">
-            <div v-for="(day, index) in forecast" :key="index" class="forecast-day-card">
+            <div v-for="(day, index) in forecast.slice(0,3)" :key="index" class="forecast-day-card">
               <p class="day-name">{{ day.name }}</p>
               <div class="forecast-icon">
-                <!-- 개선된 날씨 아이콘들 -->
-                <svg v-if="day.name === 'Sun'" width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="25" cy="25" r="12" fill="#FFD700"/>
-                  <g stroke="#FFD700" stroke-width="3" stroke-linecap="round">
-                    <line x1="25" y1="6" x2="25" y2="12"/>
-                    <line x1="25" y1="38" x2="25" y2="44"/>
-                    <line x1="6" y1="25" x2="12" y2="25"/>
-                    <line x1="38" y1="25" x2="44" y2="25"/>
-                    <line x1="10.86" y1="10.86" x2="15.51" y2="15.51"/>
-                    <line x1="34.49" y1="34.49" x2="39.14" y2="39.14"/>
-                    <line x1="10.86" y1="39.14" x2="15.51" y2="34.49"/>
-                    <line x1="34.49" y1="15.51" x2="39.14" y2="10.86"/>
-                  </g>
-                </svg>
-                <svg v-else-if="day.name === 'Mon'" width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="30" cy="18" r="8" fill="#FFD700"/>
-                  <g stroke="#FFD700" stroke-width="2" stroke-linecap="round">
-                    <line x1="30" y1="4" x2="30" y2="7"/>
-                    <line x1="42" y1="18" x2="45" y2="18"/>
-                  </g>
-                  <path d="M8 25c0-6 5-11 11-11s11 5 11 11c0 2-1 4-2 5H10c-1-1-2-3-2-5z" fill="#6B9BD1" opacity="0.8"/>
-                  <path d="M32 28c0-4 3-7 7-7s7 3 7 7c0 1-1 2-1 3H33c0-1-1-2-1-3z" fill="#6B9BD1" opacity="0.6"/>
-                  <line x1="15" y1="35" x2="13" y2="40" stroke="#6B9BD1" stroke-width="2"/>
-                  <line x1="25" y1="37" x2="23" y2="42" stroke="#6B9BD1" stroke-width="2"/>
-                  <line x1="35" y1="35" x2="33" y2="40" stroke="#6B9BD1" stroke-width="2"/>
-                </svg>
-                <svg v-else-if="day.name === 'Tue'" width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M10 20c0-8 6-14 14-14s14 6 14 14c0 3-1 5-2 7H12c-1-2-2-4-2-7z" fill="#87A8C7" opacity="0.9"/>
-                  <path d="M32 25c0-5 4-9 9-9s9 4 9 9c0 2-1 3-1 4H33c0-1-1-2-1-4z" fill="#87A8C7" opacity="0.7"/>
-                  <line x1="16" y1="32" x2="14" y2="38" stroke="#87A8C7" stroke-width="2"/>
-                  <line x1="24" y1="34" x2="22" y2="40" stroke="#87A8C7" stroke-width="2"/>
-                  <line x1="32" y1="32" x2="30" y2="38" stroke="#87A8C7" stroke-width="2"/>
-                  <line x1="40" y1="33" x2="38" y2="39" stroke="#87A8C7" stroke-width="2"/>
-                </svg>
-                <svg v-else width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M8 20c0-8 6-14 14-14s14 6 14 14c0 3-1 5-2 7H10c-1-2-2-4-2-7z" fill="#87A8C7"/>
-                  <path d="M30 25c0-5 4-9 9-9s9 4 9 9c0 2-1 3-1 4H31c0-1-1-2-1-4z" fill="#87A8C7" opacity="0.8"/>
-                  <line x1="14" y1="32" x2="12" y2="38" stroke="#87A8C7" stroke-width="3"/>
-                  <line x1="22" y1="34" x2="20" y2="40" stroke="#87A8C7" stroke-width="3"/>
-                  <line x1="30" y1="32" x2="28" y2="38" stroke="#87A8C7" stroke-width="3"/>
-                  <line x1="38" y1="33" x2="36" y2="39" stroke="#87A8C7" stroke-width="3"/>
-                  <line x1="18" y1="36" x2="16" y2="42" stroke="#87A8C7" stroke-width="3"/>
-                  <line x1="26" y1="38" x2="24" y2="44" stroke="#87A8C7" stroke-width="3"/>
-                  <line x1="34" y1="36" x2="32" y2="42" stroke="#87A8C7" stroke-width="3"/>
-                </svg>
+                <span class="small-emoji">{{ day.emoji }}</span>
               </div>
               <p class="forecast-temp">{{ day.high }}° <span class="low-temp">{{ day.low }}°</span></p>
             </div>
@@ -230,39 +161,241 @@
 </template>
 
 <script setup>
-import { ref, onMounted, h } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, h } from 'vue'
 import { defineOptions } from 'vue'
+import weatherApi from '@/apis/weatherApi'
+import wardrobeApi from '@/apis/wardrobeApi'
+import locationApi from '@/apis/locationApi'
+import { getCurrentUserId } from '@/constants/user'
 // 컴포넌트 이름 설정
 defineOptions({
   name: 'WhatToWearApp'
 })
 
+const USER_ID = getCurrentUserId()
+
 // 반응형 데이터 정의
 const isModalOpen = ref(false) // 모달 열림/닫힘 상태
 const searchQuery = ref('') // 검색어
-const currentOutfitIndex = ref(0) // 현재 선택된 의상 인덱스
+const currentOutfitIndex = ref(0) // 현재 선택된 상의 인덱스
+const notificationEnabled = ref(false)
 
-// 의상 목록 데이터
-const outfits = ref([
-  { name: '베이지 스웨터', type: 'sweater' },
-  { name: '블루 셔츠', type: 'shirt' },
-  { name: '그레이 후디', type: 'hoodie' }
-])
+// 날씨 데이터
+const currentCoordinates = ref({ lat: 37.5665, lon: 126.9780 }) // 서울 기본 좌표
+const currentLocationName = ref('')
+const currentTemperature = ref(10)
+const highestTemp = ref(12)
+const lowestTemp = ref(0)
 
-// 현재 선택된 의상 정보 - computed 대신 ref로 관리
-const currentOutfit = ref({
-  topName: '베이지 스웨터',
-  bottomName: '그레이 팬츠',
-  accessoryName: '블루 캡'
-})
+// 하늘/강수 상태 (백엔드 skyCondition, precipitationType)
+const skyCondition = ref('')
+const precipitationType = ref('')
+
+const CONDITIONS = {
+  clear: { emoji: '☀️', label: '맑음' },
+  cloudy: { emoji: '⛅', label: '구름많음' },
+  overcast: { emoji: '☁️', label: '흐림' },
+  rain: { emoji: '🌧️', label: '비' },
+  sleet: { emoji: '🌨️', label: '비/눈' },
+  snow: { emoji: '❄️', label: '눈' },
+  shower: { emoji: '🌦️', label: '소나기' }
+}
+
+// 기상청 코드("1","3","4" / "1"~"4") 와 한글 문자열 모두 처리
+const toConditionKey = (sky, pty) => {
+  const p = String(pty ?? '').trim()
+  if (p === '4' || p.includes('소나기')) return 'shower'
+  if (p === '2' || p.includes('비/눈') || p.includes('진눈')) return 'sleet'
+  if (p === '1' || p.includes('비')) return 'rain'
+  if (p === '3' || p.includes('눈')) return 'snow'
+  const k = String(sky ?? '').trim()
+  if (k === '4' || k.includes('흐림')) return 'overcast'
+  if (k === '3' || k.includes('구름')) return 'cloudy'
+  return 'clear'
+}
+
+const conditionInfo = computed(
+  () => CONDITIONS[toConditionKey(skyCondition.value, precipitationType.value)]
+)
+
+// 현재 시각 표시
+const formatTime = () =>
+  new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase()
+const currentTimeText = ref(formatTime())
+let clockTimer = null
+
+// 오늘 날씨 기반 추천 의상 (카테고리별)
+const recommended = ref({ top: [], bottom: null, accessory: null })
+const currentTop = computed(() => recommended.value.top[currentOutfitIndex.value] ?? null)
+
+
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+// LocalDate가 "2026-10-15" 문자열로 온다고 가정 (배열 형태로 오면 아래처럼 분기 추가)
+const parseLocalDate = (value) => {
+  const [y, m, d] = String(value).split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
+// dailyForecasts 한 항목 → forecast-day-card가 쓰는 모양으로 변환
+const toForecastCard = (day, index) => {
+  const key = toConditionKey(day.skyCondition, day.precipitationType)   // 기존 함수 재사용
+  return {
+    name: index === 0 ? 'Today' : DAY_NAMES[parseLocalDate(day.date).getDay()],
+    emoji: CONDITIONS[key].emoji,
+    high: day.maxTemperature != null ? Math.round(day.maxTemperature) : '-',
+    low: day.minTemperature != null ? Math.round(day.minTemperature) : '-'
+  }
+}
+
+
+// 서버에 저장된 알림 위치 동기화
+const syncNotificationLocation = async () => {
+  try {
+    const saved = await locationApi.getLocation(USER_ID)
+    notificationEnabled.value = saved?.enabled ?? false
+    if (notificationEnabled.value) {
+      await locationApi.updateLocation(
+        USER_ID,
+        currentCoordinates.value.lat,
+        currentCoordinates.value.lon,
+        true
+      )
+    }
+  } catch (error) {
+    console.error('알림 위치 동기화 실패:', error)
+  }
+}
+
+// 날씨 데이터 조회 (좌표 우선, 없으면 지역명)
+const fetchWeatherData = async (location) => {
+  try {
+    const { lat, lon } = currentCoordinates.value
+    const response = lat && lon
+      ? await weatherApi.getWeatherByCoordinates(lat, lon)
+      : await weatherApi.getWeatherByLocation(location)
+
+    if (response) {
+      currentTemperature.value = response.maxTemperature || response.minTemperature || 10
+      highestTemp.value = response.maxTemperature || 12
+      lowestTemp.value = response.minTemperature || 0
+      skyCondition.value = response.skyCondition ?? ''
+      precipitationType.value = response.precipitationType ?? ''
+
+      if(response.dailyForecasts?.length){
+        forecast.value= response.dailyForecasts.map(toForecastCard)
+      }
+
+    }
+  } catch (error) {
+    console.error('날씨 데이터 로드 실패:', error)
+  }
+}
+
+// 오늘 날씨에 맞는 상의/하의/액세서리 추천 조회
+const fetchRecommendedClothes = async () => {
+  try {
+    const { lat, lon } = currentCoordinates.value
+    const [top, bottom, accessory] = await Promise.all(
+      ['TOP', 'BOTTOM', 'ACCESSORY'].map(category =>
+        wardrobeApi.getRecommendedClothesByCoordinates(USER_ID, lat, lon, category)
+      )
+    )
+    recommended.value = {
+      top: top || [],
+      bottom: bottom?.[0] ?? null,
+      accessory: accessory?.[0] ?? null
+    }
+    currentOutfitIndex.value = 0
+  } catch (error) {
+    console.error('추천 의상 로드 실패:', error)
+  }
+}
+
+    //** 사용자의 현재 위치 가져오기 (Geolocation API)
+    const getCurrentPosition = () => {
+      return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+          reject(new Error('Geolocation is not supported'));
+          return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            const { latitude, longitude } = position.coords;
+            currentCoordinates.value = { lat: latitude, lon: longitude };
+            
+            try {
+              // 카카오맵 Reverse Geocoding으로 위도/경도 → 지역명 변환
+              const locationName = await reverseGeocode(latitude, longitude);
+              currentLocationName.value = locationName; // 위치명 저장
+              
+              resolve(locationName);
+            } catch (error) {
+              console.error('Reverse Geocoding 실패:', error);
+              // 실패 시 기본 지역명 사용
+              currentLocationName.value = '서울';
+              resolve('서울');
+            }
+          },
+          (error) => {
+            console.error('위치 정보 가져오기 실패:', error);
+            reject(error);
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 0
+          }
+        );
+      });
+    };
+
+    //** 카카오맵 JavaScript SDK로 좌표를 지역명으로 변환 (Reverse Geocoding)
+    const reverseGeocode = async (lat, lon) => {
+      return new Promise((resolve, reject) => {
+        try {
+          // Kakao Maps SDK 로드 확인
+          if (!window.kakao) {
+            console.error('Kakao Maps SDK가 로드되지 않았습니다');
+            reject(new Error('Kakao Maps SDK not loaded'));
+            return;
+          }
+
+          // Geocoder 초기화
+          window.kakao.maps.load(() => {
+            const geocoder = new window.kakao.maps.services.Geocoder();
+
+            // 좌표로 주소 검색
+            geocoder.coord2Address(lon, lat, (result, status) => {
+              if (status === window.kakao.maps.services.Status.OK) {
+                if (result && result.length > 0) {
+                  const address = result[0].address;
+                  // "3단계" 지역명 반환 (구/군/시)
+                  const locationName = address.region_3depth_name || address.region_2depth_name;
+                  console.log('지역명 변환 성공:', locationName);
+                  resolve(locationName);
+                } else {
+                  console.error('주소를 찾을 수 없습니다');
+                  reject(new Error('주소를 찾을 수 없습니다'));
+                }
+              } else {
+                console.error('Geocoding 실패:', status);
+                reject(new Error(`Geocoding failed with status: ${status}`));
+              }
+            });
+          });
+        } catch (error) {
+          console.error('Reverse Geocoding 에러:', error);
+          reject(error);
+        }
+      });
+    };
+
+
 
 // 날씨 예보 데이터
-const forecast = ref([
-  { name: 'Sun', high: 15, low: 8 },
-  { name: 'Mon', high: 12, low: 7 },
-  { name: 'Tue', high: 9, low: 7 },
-  { name: 'Wed', high: 8, low: 4 }
-])
+const forecast = ref([])
 
 // 의상 카테고리 아이콘 컴포넌트들을 이모지로 정의
 const TShirtIcon = {
@@ -315,26 +448,15 @@ const toggleModal = () => {
 }
 
 const prevOutfit = () => {
-  if (currentOutfitIndex.value > 0) {
-    currentOutfitIndex.value--
-  } else {
-    currentOutfitIndex.value = outfits.value.length - 1
-  }
-  updateCurrentOutfit()
+  const len = recommended.value.top.length
+  if (!len) return
+  currentOutfitIndex.value = (currentOutfitIndex.value - 1 + len) % len
 }
 
 const nextOutfit = () => {
-  if (currentOutfitIndex.value < outfits.value.length - 1) {
-    currentOutfitIndex.value++
-  } else {
-    currentOutfitIndex.value = 0
-  }
-  updateCurrentOutfit()
-}
-
-const updateCurrentOutfit = () => {
-  const outfit = outfits.value[currentOutfitIndex.value]
-  currentOutfit.value.topName = outfit.name
+  const len = recommended.value.top.length
+  if (!len) return
+  currentOutfitIndex.value = (currentOutfitIndex.value + 1) % len
 }
 
 const selectCategory = (categoryName) => {
@@ -342,9 +464,21 @@ const selectCategory = (categoryName) => {
 }
 
 // 컴포넌트 마운트 시 실행
-onMounted(() => {
-  console.log('옷장 앱이 마운트되었습니다') // 앱 초기화 완료 로그
+onMounted(async () => {
+  clockTimer = setInterval(() => { currentTimeText.value = formatTime() }, 30000)
+  try {
+    const userLocation = await getCurrentPosition()
+    await fetchWeatherData(userLocation)
+    await syncNotificationLocation()
+  } catch (error) {
+    console.error('초기화 중 오류 발생:', error)
+    currentLocationName.value = currentLocationName.value || '서울'
+    await fetchWeatherData('서울')
+  }
+  await fetchRecommendedClothes()
 })
+
+onBeforeUnmount(() => clearInterval(clockTimer))
 </script>
 
 <style scoped>
@@ -354,6 +488,16 @@ onMounted(() => {
   --primary-medium: #4A9782; /* 중간 녹색 */
   --primary-beige: #DCD0A8;  /* 베이지 */
   --primary-ivory: #FFF9E5;  /* 아이보리 */
+}
+
+.small-emoji {
+  font-size: 36px;
+  line-height: 1;
+}
+
+.condition-emoji {
+  font-size: 96px;
+  line-height: 1;
 }
 
 /* 전체 앱 컨테이너 */
