@@ -14,14 +14,12 @@ async function subscribe(subscription) {
   const response = await alarmApi.post('/subscribe', subscription);
   return response.data;
 }
-
-
-// 알림 전송
- 
-async function sendNotification(request) {
-  const response = await alarmApi.post('/send', request);
+//웹푸시 구독 해제 로그아웃, 채널 변경시
+async function unsubscribe({endpoint}) {
+  const response = await alarmApi.post('/unsubscribe', {endpoint});
   return response.data;
 }
+
 
 // 토픽 알림 전송
  
@@ -51,12 +49,26 @@ async function registerFcmToken({userId, token,deviceId}) {
   const response = await alarmApi.post('/fcm/register',{userId,token,deviceId});
   return response.data;
 }
+
+
+
+//FCM 토큰 해제 *로그아웃, 채널 변경
+async function unregisterFcmToken({token}) {
+  const response = await alarmApi.post('/fcm/unregister',{token});
+  return response.data;
+}
+
+
+
+
 export default {
   getPublicKey,
   subscribe,
-  sendNotification,
   sendTopicNotification,
   sendTokenNotification,
   broadcast,
-  registerFcmToken
+  registerFcmToken,
+  unregisterFcmToken,
+  unsubscribe
+  
 };

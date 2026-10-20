@@ -54,9 +54,11 @@
         <h1 class="main-title">
           Today's<br>weather<br>and<br>wardrobe
         </h1>
-        <button @click="toggleNotification">
-          {{ notificationEnabled ? '🔔 알림 켜짐' : '🔕 알림 꺼짐' }}
-        </button>
+        <div class="notification-box">
+          <button @click="toggleNotification">
+            {{ notificationEnabled ? '🔔 알림 켜짐' : '🔕 알림 꺼짐' }}
+          </button>
+        </div>
         <!-- 현재 날씨 카드 -->
         <div class="current-weather-card">
           <div class="location-display" v-if="currentLocationName">
@@ -122,22 +124,24 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import wardrobeApi from '@/apis/wardrobeApi';
 import weatherApi from '@/apis/weatherApi';
-import { getCurrentUserId } from '@/constants/user';
+import { getCurrentUserId ,getNotificationChannel} from '@/constants/user';
 import locationApi from '@/apis/locationApi';
 import { enableNotification } from '@/services/pushSetup';
+
 
 
 export default {
   name: 'WeatherWardrobe',
   setup() {
-
-    //개발 모드
-    //userId 1: webpush 전용 userId 2: fcm 전용
-    const USER_ID= getCurrentUserId();
+      //로그인 상태가 바뀌어도 최신값을 읽도록 
+    const userId = computed(()=>getCurrentUserId());
     const notificationEnabled=ref(false);
+    // 알림 방식은 회원가입/내 정보 수정에서 선택한 값을 사용 ("WEBPUSH" | "FCM")
+    
+
 
 
     // 반응형 상태 변수들 정의
@@ -151,11 +155,11 @@ export default {
     
     const syncNotificationLocation = async ()=>{
       try {
-        const saved = await locationApi.getLocation(USER_ID);
+        const saved = await locationApi.getLocation(userId.value);
         notificationEnabled.value = saved?.enabled ?? false;
          if (notificationEnabled.value) {
             await locationApi.updateLocation(
-              USER_ID,
+              userId.value,
               currentCoordinates.value.lat,
               currentCoordinates.value.lon,
               true
@@ -168,15 +172,25 @@ export default {
     };
 
     const toggleNotification = async () =>{
+      if (userId.value == null) {
+        alert('로그인이 필요합니다.');
+        return;
+      }
+
       try {
         if(!notificationEnabled.value){
-          const {locationSaved} = await enableNotification(
+        
+        const {locationSaved} = await enableNotification(
+        getNotificationChannel(),
         currentCoordinates.value.lat,
         currentCoordinates.value.lon
-      );notificationEnabled.value = locationSaved;
+      );
+      
+        notificationEnabled.value = locationSaved;
+
         }else{
           await locationApi.updateLocation(
-            USER_ID,
+            userId.value,
             currentCoordinates.value.lat,
             currentCoordinates.value.lon,
             false
@@ -210,13 +224,13 @@ export default {
       }
     ]);
 
-    //** 네비게이션 함수
+    // 네비게이션 함수
     const navigateTo = (page) => {
       console.log(`Navigating to ${page}`);
       // 실제 라우팅 로직 구현
     };
 
-    //** 뒤로가기 함수
+    // 뒤로가기 함수
     const goBack = () => {
       console.log('Going back');
       // 실제 뒤로가기 로직 구현
@@ -224,7 +238,7 @@ export default {
 
 
 
-    //** 기상청 API에서 날씨 데이터 가져오기
+    //기상청 API에서 날씨 데이터 가져오기
     const fetchWeatherData = async (location) => {
       try {
         let response;
@@ -336,10 +350,9 @@ export default {
     //** 옷장 히스토리 데이터 가져오기 (2일전, 어제, 오늘)
     const fetchWardrobeHistory = async (userId) => {
       try {
-        //** 과거(2일전, 어제)는 실제 과거 날씨 데이터가 없으므로
-        // 임시로 현재 온도 기준으로 ±2도씩 차이를 줍니다
+        
         const pastTemperatureHistory = [
-          { date: '2 days ago', temperature: currentTemperature.value - 2 },
+          { date: '2 days ago', temperature: currentTemperature.value-2 },
           { date: 'yesterday', temperature: currentTemperature.value }
         ];
 
@@ -385,14 +398,14 @@ export default {
         await syncNotificationLocation();
 
         // 4. 옷장 히스토리 로드
-        await fetchWardrobeHistory(USER_ID);
+        await fetchWardrobeHistory(userId.value);
 
       } catch (error) {
         // 위치 가져오기 실패 시 기본 위치 사용
         console.error('위치 정보 접근 실패, 기본 위치 사용:', error);
         await fetchWeatherData('서울');
 
-        await fetchWardrobeHistory(USER_ID);
+        await fetchWardrobeHistory(userId.value);
 
       }
       

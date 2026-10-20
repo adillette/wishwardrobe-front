@@ -53,7 +53,15 @@ export const userLocationApi = axios.create({
   timeout: 10000
 })
 
+
+
+export const memberApi = axios.create({
+  baseURL: CLOTHES_API_URL, 
+  headers: { 'Content-Type': 'application/json' },
+  timeout: 10000
+});
 export default {
+  memberApi,
   alarmApi,
   wardrobeApi,
   weatherApi,

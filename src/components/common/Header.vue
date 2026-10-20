@@ -63,127 +63,66 @@
         </router-link>
 
         <!-- 로그인 상태일 때 -->
-        <div v-else class="user-menu">
-          <button @click="toggleUserDropdown" class="user-button">
-            <span>{{ username }}</span>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M7 10l5 5 5-5z"/>
-            </svg>
-          </button>
-
-          <!-- 드롭다운 메뉴 -->
-          <div v-if="showUserDropdown" class="dropdown-menu">
-            <router-link to="/profile" class="dropdown-item">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C9.79 2 8 3.79 8 6s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm0 9c-2.67 0-8 1.34-8 4v3h16v-3c0-2.66-5.33-4-8-4z"/>
-              </svg>
-              Profile
-            </router-link>
-            <router-link to="/settings" class="dropdown-item">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97 0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.49.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1 0 .33.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66z"/>
-              </svg>
-              Settings
-            </router-link>
-            <div class="dropdown-divider"></div>
-            <button @click="handleLogout" class="dropdown-item logout-btn">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
-              </svg>
-              Logout
-            </button>
-          </div>
-        </div>
+        <template v-else>
+          <router-link
+            to="/profile/edit"
+            class="nav-link"
+            active-class="active"
+          >
+            내 정보 수정
+          </router-link>
+          <span class="welcome">{{ userInfo?.userName || userInfo?.loginId }}님</span>
+          <button class="logout-btn" @click="logout">로그아웃</button>
+        </template>
       </nav>
     </div>
   </header>
 </template>
 
 <script>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useStore } from 'vuex';
+import alarmApi from '@/apis/alarmApi';
+
 
 export default {
   name: 'AppHeader',
   setup() {
     const route = useRoute();
     const router = useRouter();
+    const store = useStore();
 
     //** 헤더 표시 여부
     const hideHeader = computed(() => route.meta.hideHeader || false);
 
-    //** 로그인 상태
-    const isLoggedIn = ref(false);
-    const username = ref('');
-    
-    //** 사용자 드롭다운 메뉴 표시 여부
-    const showUserDropdown = ref(false);
+    //** 로그인 여부 / 유저 정보
+    const isLoggedIn = computed(() => store.getters['user/isLoggedIn']);
+    const userInfo = computed(() => store.getters['user/userInfo']);
 
-    //** 로그인 상태 체크
-    const checkAuthStatus = () => {
-      const authToken = localStorage.getItem('authToken');
-      const storedUsername = localStorage.getItem('username');
-      
-      if (authToken) {
-        isLoggedIn.value = true;
-        username.value = storedUsername || 'User';
-      } else {
-        isLoggedIn.value = false;
-        username.value = '';
+    //** 로그아웃 실행
+    const logout =async() => {
+      const endpoint = localStorage.getItem('pushEndpoint');
+      const token = localStorage.getItem('fcmToken');
+      try {
+        if (endpoint) await alarmApi.unsubscribe({ endpoint });
+        if (token) await alarmApi.unregisterFcmToken({ token });
+      } catch (e) {
+        // 해제에 실패해도 로그아웃은 진행한다
+        console.error('푸시 해제 실패:', e);
+      } finally {
+        localStorage.removeItem('pushEndpoint');
+        localStorage.removeItem('fcmToken');
+        await store.dispatch('user/logout');
+        router.push('/login');
       }
     };
-
-    //** 사용자 드롭다운 토글
-    const toggleUserDropdown = () => {
-      showUserDropdown.value = !showUserDropdown.value;
-    };
-
-    //** 드롭다운 외부 클릭 시 닫기
-    const closeDropdown = (event) => {
-      if (!event.target.closest('.user-menu')) {
-        showUserDropdown.value = false;
-      }
-    };
-
-    //** 로그아웃 처리
-    const handleLogout = () => {
-      //** 로컬 스토리지에서 인증 정보 제거
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('username');
-      
-      //** 상태 업데이트
-      isLoggedIn.value = false;
-      username.value = '';
-      showUserDropdown.value = false;
-      
-      //** 로그인 페이지로 이동
-      router.push('/login');
-      
-      console.log('로그아웃 완료');
-    };
-
-    //** 컴포넌트 마운트 시
-    onMounted(() => {
-      checkAuthStatus();
-      document.addEventListener('click', closeDropdown);
-      
-      //** 로그인 상태 변경 감지 (다른 탭에서 로그인/로그아웃 시)
-      window.addEventListener('storage', checkAuthStatus);
-    });
-
-    //** 컴포넌트 언마운트 시
-    onBeforeUnmount(() => {
-      document.removeEventListener('click', closeDropdown);
-      window.removeEventListener('storage', checkAuthStatus);
-    });
 
     return {
       hideHeader,
       isLoggedIn,
-      username,
-      showUserDropdown,
-      toggleUserDropdown,
-      handleLogout
+      userInfo,
+      logout
     };
   }
 };
@@ -290,69 +229,22 @@ export default {
 }
 
 
-.user-menu {
-  position: relative;
-}
-
-.user-button {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  background: rgba(0, 0, 0, 0.05);
-  border: none;
-  border-radius: 8px;
+.welcome {
   color: #333;
   font-size: 15px;
   font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.user-button:hover {
-  background: rgba(0, 0, 0, 0.1);
-}
-
-.dropdown-menu {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  min-width: 180px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  padding: 8px 0;
-  z-index: 1000;
-}
-
-.dropdown-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 10px 16px;
-  background: none;
-  border: none;
-  color: #333;
-  text-decoration: none;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background 0.2s ease;
-  text-align: left;
-}
-
-.dropdown-item:hover {
-  background: rgba(0, 0, 0, 0.05);
-}
-
-.dropdown-divider {
-  height: 1px;
-  background: #eee;
-  margin: 8px 0;
 }
 
 .logout-btn {
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  border-radius: 8px;
   color: #e74c3c;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease;
 }
 
 .logout-btn:hover {
@@ -383,9 +275,10 @@ export default {
     font-size: 12px;
   }
 
-  .user-button {
+  .welcome,
+  .logout-btn {
     font-size: 13px;
-    padding: 6px 10px;
+    padding: 6px 8px;
   }
 }
 
