@@ -59,6 +59,7 @@ import { useRouter } from "vue-router";
 import { useStore } from "vuex";
 import memberApi from "@/apis/memberApi";
 import { getNotificationChannel, setNotificationChannel } from "@/constants/user";
+import alarmApi from "@/apis/alarmApi";
 
 const router = useRouter();
 const store = useStore();
@@ -97,8 +98,18 @@ const handleUpdate = async () => {
       password: password.value,
       phone: phone.value,
     });
-
+    // 채널이 바뀐 경우에만 서버에 선호도 저장
+    // (회원정보 수정은 이미 성공했으므로 실패해도 흐름은 막지 않음)
+    if (channel.value !== getNotificationChannel()) {
+      try {
+        await alarmApi.savePreference({ userId, channel: channel.value });
+        console.log("선호도 저장 성공");
+      } catch (e) {
+        console.error("알림 채널 서버 저장 실패:", e);
+      }
+    }
     setNotificationChannel(channel.value);
+
 
     // 헤더 등에 반영되도록 스토어 갱신 (비밀번호 제외)
     store.dispatch("user/login", {
