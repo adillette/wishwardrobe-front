@@ -66,12 +66,12 @@ async function clearOtherChannel(channel) {
 export async function enableNotification(channel, lat, lon) {
   const userId = getCurrentUserId();
   if (userId == null) throw new Error('로그인이 필요합니다.');
-
-  await clearOtherChannel(channel);
-
+  if (channel !== 'FCM' && channel !== 'WEBPUSH') throw new Error(`알 수 없는 채널: ${channel}`);
+  
   if (channel === 'FCM') await registerFcm(userId);
   else await subscribeWebPush(userId);
-
+  
+  await clearOtherChannel(channel);
   setNotificationChannel(channel);
 
   let locationSaved = false;
