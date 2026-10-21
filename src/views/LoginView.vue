@@ -38,6 +38,8 @@ import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { useStore } from "vuex";
 import memberApi from "@/apis/memberApi";
+import alarmApi from "@/apis/alarmApi";
+import { setNotificationChannel } from "@/constants/user";
 
 const router = useRouter();
 const username = ref("");
@@ -58,6 +60,16 @@ const handleLogin = async () => {
 
     // 전역 로그인 상태 저장
     store.dispatch("user/login", user);
+    // 서버에 저장된 선호 채널을 이 브라우저에 반영 (실패해도 로그인은 계속)
+    try {
+      const savedChannel = await alarmApi.getPreference(user.userId);
+      if (savedChannel === "FCM" || savedChannel === "WEBPUSH") {
+        setNotificationChannel(savedChannel);
+        console.log("서버에 저장된 선호 채널을 이 브라우저에 반영");
+      }
+    } catch (e) {
+      console.error("선호 알림 채널 조회 실패:", e);
+    }
 
     alert("로그인 성공!");
 
