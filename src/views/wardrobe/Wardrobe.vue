@@ -224,7 +224,7 @@ defineOptions({
 })
 
 // 사용자 ID (localStorage에서 가져오기, 없으면 1)
-const userId = ref(parseInt(localStorage.getItem('userId') || '1'))
+const userId = ref(parseInt(localStorage.getItem('userId')))
 
 // SVG 아이콘 컴포넌트
 const TopIcon = () => h('svg', {
