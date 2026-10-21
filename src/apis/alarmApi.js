@@ -58,8 +58,15 @@ async function unregisterFcmToken({token}) {
   return response.data;
 }
 
+async function savePreference({userId, channel}) {
+  const response = await alarmApi.put('/preference',{userId, channel});
+  return response.data
+}
 
-
+async function getPreference(userId) {
+  const response = await alarmApi.get(`/preference/${userId}`);
+  return response.data;
+}
 
 export default {
   getPublicKey,
@@ -69,6 +76,7 @@ export default {
   broadcast,
   registerFcmToken,
   unregisterFcmToken,
-  unsubscribe
-  
+  unsubscribe,
+  savePreference,
+  getPreference
 };
