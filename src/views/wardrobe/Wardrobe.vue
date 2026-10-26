@@ -217,6 +217,7 @@
 import { ref, computed, h, onMounted } from 'vue'
 import { defineOptions } from 'vue'
 import wardrobeApi from '@/apis/wardrobeApi'
+import { getCurrentUserId } from '@/constants/user'
 
 // 컴포넌트 이름
 defineOptions({
@@ -224,7 +225,7 @@ defineOptions({
 })
 
 // 사용자 ID (localStorage에서 가져오기, 없으면 1)
-const userId = ref(parseInt(localStorage.getItem('userId')))
+const userId = computed(() => getCurrentUserId())
 
 // SVG 아이콘 컴포넌트
 const TopIcon = () => h('svg', {
@@ -245,6 +246,15 @@ const BottomIcon = () => h('svg', {
   h('path', { d: 'M16 4h2v16h-2v-7h-4v7H8V4h2v7h4V4h2z' })
 ])
 
+const OuterIcon = () => h('svg', {
+  width: '28',
+  height: '28',
+  viewBox: '0 0 24 24',
+  fill: 'currentColor'
+}, [
+  h('path', { d: 'M9 3L3 6v4l3 1v10h12V11l3-1V6l-6-3-3 3-3-3zm2 8h2v10h-2V11z' })
+])
+
 const HatIcon = () => h('svg', {
   width: '28',
   height: '28',
@@ -258,6 +268,7 @@ const HatIcon = () => h('svg', {
 const categories = [
   { id: 'TOP', name: 'Tops', icon: TopIcon },
   { id: 'BOTTOM', name: 'Bottoms', icon: BottomIcon },
+  { id: 'OUTER', name: 'Outer', icon: OuterIcon },
   { id: 'ACCESSORY', name: 'Accessories', icon: HatIcon }
 ]
 
