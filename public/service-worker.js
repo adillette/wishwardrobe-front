@@ -26,6 +26,7 @@ self.addEventListener('push', (event) => {
         data: { url: data.url ?? data.clickAction ?? '/'},
         image: data.image ?? undefined,
         tag: 'webpush-notification',
+        renotify: true, 
         requireInteraction: false
       }).then(() => {
         console.log('[Service Worker] Notification displayed successfully');
