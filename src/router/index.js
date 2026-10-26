@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import weatherRouting from '@/router/weatherRouting'
 import wardrobeRouting from '@/router/wardrobeRouting'
 import alarmRouting from '@/router/alarmRouting'
+import { tokenStorage } from '@/apis/axiosConfig'
 
 const routes = [
   {
@@ -53,5 +54,19 @@ const router = createRouter({
   history: createWebHistory(process.env.BASE_URL),
   routes
 })
+
+router.beforeEach((to) => {
+  const loggedIn = !!tokenStorage.get()
+
+  // 로그인이 필요한 페이지인데 토큰이 없으면 로그인 화면으로
+  if (to.meta.requiresAuth && !loggedIn) {
+    return { name: 'login' }
+  }
+  // 이미 로그인했는데 로그인 페이지로 가려 하면 메인으로
+  if (to.name === 'login' && loggedIn) {
+    return { name: 'main' }
+  }
+})
+
 
 export default router
