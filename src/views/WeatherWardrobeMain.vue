@@ -55,7 +55,7 @@
           Today's<br>weather<br>and<br>wardrobe
         </h1>
         <div class="notification-box">
-          <button @click="toggleNotification">
+          <button  :class="{ off: !notificationEnabled }" @click="toggleNotification">
             {{ notificationEnabled ? '🔔 알림 켜짐' : '🔕 알림 꺼짐' }}
           </button>
         </div>
@@ -156,7 +156,9 @@ export default {
     const syncNotificationLocation = async ()=>{
       try {
         const saved = await locationApi.getLocation(userId.value);
-        notificationEnabled.value = saved?.enabled ?? false;
+        // 서버가 켜짐이어도 브라우저 알림 권한이 없으면 실제로는 받을 수 없으므로 꺼짐으로 표시한다
+        const permitted = typeof Notification !== 'undefined' && Notification.permission === 'granted';
+        notificationEnabled.value = (saved?.enabled ?? false) && permitted;
          if (notificationEnabled.value) {
             await locationApi.updateLocation(
               userId.value,
@@ -658,6 +660,39 @@ export default {
 .detail-location {
   font-size: 14px;
   color: #888;
+}
+
+.notification-box button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 999px;
+  background: #4A90E2;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.notification-box button:hover {
+  background: #3a7bc8;
+}
+
+.notification-box button:active {
+  transform: scale(0.97);
+}
+
+/* 꺼짐 상태 */
+.notification-box button.off {
+  background: #e5e7eb;
+  color: #666;
+}
+
+.notification-box button.off:hover {
+  background: #d5d8dd;
 }
 
 /* 반응형 레이아웃 */
