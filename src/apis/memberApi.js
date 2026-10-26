@@ -15,16 +15,25 @@ function login(data) {
 }
 
 /**
- * 회원 정보 수정
+ * 회원 정보 수정(비밀번호 제외)
  */
-function updateUsers(userId, data) {
-  return memberApi.put("/users/update", data, {
-    params: { userId }
-  });
+function updateUsers(data) {
+  return memberApi.put("/users/update", data );
+}
+
+//비밀번호 수정
+function updatePassword(data) {
+  return memberApi.put("/users/updatepw", data); 
+}
+
+function verifyPassword({  currentPassword }) {
+  return memberApi.post("/users/verify-password", { password: currentPassword });
 }
 
 export default {
   register,
   login,
   updateUsers,
+  updatePassword,
+  verifyPassword
 };

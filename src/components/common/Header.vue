@@ -84,6 +84,7 @@ import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useStore } from 'vuex';
 import alarmApi from '@/apis/alarmApi';
+import { tokenStorage } from '@/apis/axiosConfig';
 
 
 export default {
@@ -113,6 +114,7 @@ export default {
       } finally {
         localStorage.removeItem('pushEndpoint');
         localStorage.removeItem('fcmToken');
+        tokenStorage.remove();
         await store.dispatch('user/logout');
         router.push('/login');
       }

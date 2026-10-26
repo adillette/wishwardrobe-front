@@ -39,7 +39,11 @@ import { useRouter } from "vue-router";
 import { useStore } from "vuex";
 import memberApi from "@/apis/memberApi";
 import alarmApi from "@/apis/alarmApi";
-import { setNotificationChannel } from "@/constants/user";
+import locationApi from "@/apis/locationApi";
+import { enableNotification } from "@/services/pushSetup";
+import { setNotificationChannel, getNotificationChannel } from "@/constants/user";
+import { tokenStorage } from "@/apis/axiosConfig";
+
 
 const router = useRouter();
 const username = ref("");
@@ -56,19 +60,45 @@ const handleLogin = async () => {
       password: password.value,
     });
 
-    const user = res.data;
-
+    const { jwt, ...user } = res.data; 
+    tokenStorage.set(jwt);
     // 전역 로그인 상태 저장
     store.dispatch("user/login", user);
     // 서버에 저장된 선호 채널을 이 브라우저에 반영 (실패해도 로그인은 계속)
+    // 로그인 성공 후 알림 복원 (하나의 블록)
     try {
+      
+
       const savedChannel = await alarmApi.getPreference(user.userId);
+      
       if (savedChannel === "FCM" || savedChannel === "WEBPUSH") {
         setNotificationChannel(savedChannel);
-        console.log("서버에 저장된 선호 채널을 이 브라우저에 반영");
+
+        const saved = await locationApi.getLocation(user.userId);
+        if (
+          saved?.enabled &&
+          typeof Notification !== "undefined" &&
+          Notification.permission === "granted"
+        ) {
+          await enableNotification(savedChannel);
+        }
       }
     } catch (e) {
-      console.error("선호 알림 채널 조회 실패:", e);
+      console.error("알림 복원 실패:", e);
+    }
+
+    // 로그아웃 때 이 기기의 푸시 구독이 해제되므로, 서버에 알림이 켜져 있던 사용자는 다시 등록한다
+    try {
+      const saved = await locationApi.getLocation(user.userId);
+      if (
+        saved?.enabled &&
+        typeof Notification !== "undefined" &&
+        Notification.permission === "granted"
+      ) {
+        await enableNotification(getNotificationChannel());
+      }
+    } catch (e) {
+      console.error("알림 재구독 실패:", e);
     }
 
     alert("로그인 성공!");
