@@ -63,7 +63,7 @@
                 <div class="wardrobe-item">
                   <!-- 실제 상의 이미지 -->
                   <img v-if="currentTop?.imageUrl" :src="currentTop.imageUrl" :alt="currentTop.name" class="clothing-image" />
-                  <p v-else class="no-clothes">추천 상의 없음</p>
+                  <p v-else class="no-clothes">추천 상의/겉옷 없음</p>
                   <p v-if="currentTop" class="clothing-name">{{ currentTop.name }}</p>
                 </div>
                 
@@ -113,50 +113,7 @@
     
     
     
-    <!-- 모달 컴포넌트 - 세 번째 이미지 스타일 적용 -->
-    <div v-if="isModalOpen" class="modal-overlay" @click.self="toggleModal">
-      <div class="modal-container">
-        <div class="modal-header">
-          <div class="modal-title">Wardrobe</div>
-          
-          <div class="search-container">
-            <div class="search-bar">
-              <input type="text" v-model="searchQuery" placeholder="Search..." />
-              <button class="search-btn">🔍</button>
-            </div>
-          </div>
-        </div>
-        
-        <div class="category-grid">
-          <div class="category-row">
-            <div 
-              v-for="category in categories.slice(0, 4)" 
-              :key="category.name"
-              class="category-item"
-              @click="selectCategory(category.name)"
-            >
-              <div class="category-icon">
-                <component :is="category.icon" />
-              </div>
-              <p>{{ category.name }}</p>
-            </div>
-          </div>
-          <div class="category-row">
-            <div 
-              v-for="category in categories.slice(4, 8)" 
-              :key="category.name"
-              class="category-item"
-              @click="selectCategory(category.name)"
-            >
-              <div class="category-icon">
-                <component :is="category.icon" />
-              </div>
-              <p>{{ category.name }}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    
   </div>
 </template>
 
@@ -175,8 +132,7 @@ defineOptions({
 const USER_ID = getCurrentUserId()
 
 // 반응형 데이터 정의
-const isModalOpen = ref(false) // 모달 열림/닫힘 상태
-const searchQuery = ref('') // 검색어
+
 const currentOutfitIndex = ref(0) // 현재 선택된 상의 인덱스
 const notificationEnabled = ref(false)
 
@@ -296,13 +252,14 @@ const fetchWeatherData = async (location) => {
 const fetchRecommendedClothes = async () => {
   try {
     const { lat, lon } = currentCoordinates.value
-    const [top, bottom, accessory] = await Promise.all(
-      ['TOP', 'BOTTOM', 'ACCESSORY'].map(category =>
+    const [top, bottom, accessory, outer] = await Promise.all(
+      ['TOP', 'BOTTOM', 'ACCESSORY', 'OUTER'].map(category =>
         wardrobeApi.getRecommendedClothesByCoordinates(USER_ID, lat, lon, category)
       )
     )
     recommended.value = {
-      top: top || [],
+      // 겉옷은 상의 캐러셀에 함께 보여준다
+      top: [...(top || []), ...(outer || [])],
       bottom: bottom?.[0] ?? null,
       accessory: accessory?.[0] ?? null
     }
@@ -430,22 +387,9 @@ const ShoesIcon = {
   render: () => h('span', { class: 'emoji-icon' }, '👟')
 }
 
-// 카테고리 목록
-const categories = ref([
-  { name: '티셔츠', icon: TShirtIcon },
-  { name: '자켓', icon: JacketIcon },
-  { name: '드레스', icon: DressIcon },
-  { name: '청바지', icon: JeansIcon },
-  { name: '셔츠', icon: ShirtIcon },
-  { name: '가디건', icon: CardiganIcon },
-  { name: '스커트', icon: SkirtIcon },
-  { name: '신발', icon: ShoesIcon }
-])
 
-// 메서드들 정의
-const toggleModal = () => {
-  isModalOpen.value = !isModalOpen.value
-}
+
+
 
 const prevOutfit = () => {
   const len = recommended.value.top.length
@@ -459,9 +403,7 @@ const nextOutfit = () => {
   currentOutfitIndex.value = (currentOutfitIndex.value + 1) % len
 }
 
-const selectCategory = (categoryName) => {
-  console.log(`선택된 카테고리: ${categoryName}`) // 카테고리 선택 로직 구현 예정
-}
+
 
 // 컴포넌트 마운트 시 실행
 onMounted(async () => {
@@ -821,149 +763,6 @@ onBeforeUnmount(() => clearInterval(clockTimer))
   color: white;
 }
 
-/* 모달 스타일 - 세 번째 이미지 기반 */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.modal-container {
-  width: 80%;
-  max-width: 600px;
-  background-color: var(--primary-dark);
-  border-radius: 16px;
-  padding: 30px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-}
-
-.modal-header {
-  margin-bottom: 30px;
-}
-
-.modal-title {
-  color: white;
-  font-size: 24px;
-  font-weight: 600;
-  text-align: center;
-  margin-bottom: 20px;
-}
-
-.modal-nav {
-  display: flex;
-  justify-content: center;
-  gap: 20px;
-  margin-bottom: 20px;
-}
-
-.nav-link {
-  color: rgba(255, 255, 255, 0.7);
-  text-decoration: none;
-  font-size: 14px;
-  transition: all 0.3s ease;
-  padding-bottom: 5px;
-}
-
-.nav-link.active {
-  color: white;
-  border-bottom: 2px solid white;
-}
-
-.nav-link:hover {
-  color: white;
-}
-
-.search-container {
-  display: flex;
-  justify-content: center;
-}
-
-.search-bar {
-  display: flex;
-  align-items: center;
-  background-color: rgba(255, 255, 255, 0.1);
-  border-radius: 20px;
-  padding: 8px 15px;
-  width: 250px;
-}
-
-.search-bar input {
-  background: transparent;
-  border: none;
-  outline: none;
-  color: white;
-  padding: 5px;
-  flex: 1;
-}
-
-.search-bar input::placeholder {
-  color: rgba(255, 255, 255, 0.5);
-}
-
-.search-btn {
-  background: transparent;
-  border: none;
-  color: white;
-  cursor: pointer;
-  font-size: 16px;
-  padding: 0;
-  margin-left: 10px;
-}
-
-/* 카테고리 그리드 */
-.category-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.category-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 15px;
-}
-
-.category-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  background-color: var(--primary-beige);
-  border-radius: 12px;
-  padding: 20px 15px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.category-item:hover {
-  background-color: var(--primary-medium);
-  transform: translateY(-2px);
-}
-
-.category-item:hover .category-icon {
-  color: white;
-}
-
-.category-item:hover p {
-  color: white;
-}
-
-.category-icon {
-  width: 40px;
-  height: 40px;
-  margin-bottom: 10px;
-  color: var(--primary-dark);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
 
 .emoji-icon {
   font-size: 40px;
