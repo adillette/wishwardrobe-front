@@ -16,22 +16,8 @@
     <main class="main-content">
       <!-- Header -->
       <header class="header">
-        <div class="greeting">
-          <div class="avatar">👤</div>
-          <div>
-            <p class="greeting-text">Hello,</p>
-            <h2 class="user-name">Jack Grealish</h2>
-          </div>
-        </div>
         
-        <div class="search-bar">
-          <input type="text" placeholder="Search anything ..." />
-          <button class="search-btn">🔍</button>
-        </div>
-
-        <button class="notification-btn" @click="subscribePush">
-          {{ isSubscribed ? '🔔✓':'🔔' }}
-        </button>
+        
 
         <div class="location-weather">
           <div class="location-info">
@@ -171,10 +157,6 @@
      
     </aside>
 
-
-
-
-    
   </div>
 </template>
 
@@ -252,23 +234,8 @@ const loading=ref(false);
 const error=ref(null);
 
   
-//webPush 구독 관련
-const isSubscribed=ref(false);
-const subscribePush=async()=> {
-  try {
-    const{ channel,locationSaved } = await enableNotification(
-      userLatitude.value , userLongitude.value
-    )
-    isSubscribed.value=true
-    alert(`알림 설정 완료 (${channel === 'FCM' ? '모바일 FCM' : 'PC WebPush'})`)
-    if (!locationSaved) alert('지도를 클릭해 위치를 불러와야 아침 알림 위치가 저장돼요.')
-  } catch (e) {
-    console.error('알림 설정 실패:', e)
-    alert('알림 설정 실패: ' + e.message)
-  }
 
-  
-}
+
 
 
 onBeforeUnmount(() => {
