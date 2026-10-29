@@ -98,6 +98,20 @@
       <!-- 하단 타임라인 정보 -->
       <div class="timeline">
         <span class="date">{{ currentDate }}</span>
+
+        <!-- 로그인 상태에서만 수정/삭제 노출 -->
+        <div v-if="isLoggedIn && selectedItem" class="item-actions">
+          <button class="action-btn edit" @click="openEditModal" title="수정">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+            </svg>
+          </button>
+          <button class="action-btn delete" @click="handleDelete" title="삭제">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -139,8 +153,10 @@
 
             <!-- 오른쪽: 폼 -->
             <div class="modal-right">
-              <h2 class="modal-title">옷 등록하기</h2>
-              <p class="modal-subtitle">새로운 옷을 옷장에 추가하세요</p>
+              <h2 class="modal-title">{{ isEditMode ? '옷 수정하기' : '옷 등록하기' }}</h2>
+              <p class="modal-subtitle">
+                {{ isEditMode ? '옷 정보를 수정하세요' : '새로운 옷을 옷장에 추가하세요' }}
+              </p>
 
               <form @submit.prevent="handleSubmit" class="add-form">
                 <!-- 옷 이름 -->
@@ -170,8 +186,8 @@
                 <!-- 온도 범위 -->
                 <div class="form-group">
                   <label for="tempRange">착용 온도</label>
-                  <select id="tempRange" v-model="formData.tempRange" required>
-                    <option value="" disabled>선택해주세요</option>
+                  <select id="tempRange" v-model="formData.tempRange" :required="!isEditMode">
+                    <option value="" disabled>{{ isEditMode ? '변경하지 않음' : '선택해주세요' }}</option>
                     <option value="VERY_COLD">매우 추움 (-30°C ~ 4°C)</option>
                     <option value="COLD">추움 (5°C ~ 8°C)</option>
                     <option value="COOL">쌀쌀함 (9°C ~ 11°C)</option>
@@ -194,7 +210,7 @@
                     취소
                   </button>
                   <button type="submit" class="btn-submit" :disabled="isSubmitting">
-                    {{ isSubmitting ? '저장 중...' : '저장하기' }}
+                    {{ isSubmitting ? '저장 중...' : (isEditMode ? '수정하기' : '저장하기') }}
                   </button>
                 </div>
               </form>
@@ -226,6 +242,7 @@ defineOptions({
 
 // 사용자 ID (localStorage에서 가져오기, 없으면 1)
 const userId = computed(() => getCurrentUserId())
+const isLoggedIn = computed(() => userId.value != null)
 
 // SVG 아이콘 컴포넌트
 const TopIcon = () => h('svg', {
@@ -358,6 +375,8 @@ const fetchClothes = async () => {
 
 // 모달 상태
 const showAddModal = ref(false)
+const isEditMode = ref(false)
+const editingClothesId = ref(null)
 const isSubmitting = ref(false)
 const errorMessage = ref('')
 const previewImage = ref(null)
@@ -373,13 +392,48 @@ const formData = ref({
 
 // 모달 열기/닫기
 const openAddModal = () => {
+  isEditMode.value = false
+  editingClothesId.value = null
   showAddModal.value = true
   resetForm()
 }
 
+// 선택된 옷 정보로 폼을 채워 수정 모드로 연다
+const openEditModal = () => {
+  if (!selectedItem.value) return
+  resetForm()
+  isEditMode.value = true
+  editingClothesId.value = selectedItem.value.clothesId
+  formData.value = {
+    name: selectedItem.value.name,
+    category: selectedItem.value.category,
+    tempRange: selectedItem.value.tempRange ?? '',
+    imageFile: null
+  }
+  previewImage.value = selectedItem.value.imageUrl || null
+  showAddModal.value = true
+}
+
 const closeModal = () => {
   showAddModal.value = false
+  isEditMode.value = false
+  editingClothesId.value = null
   resetForm()
+}
+
+// 옷 삭제
+const handleDelete = async () => {
+  if (!selectedItem.value) return
+  if (!confirm(`'${selectedItem.value.name}' 옷을 삭제할까요?`)) return
+
+  try {
+    await wardrobeApi.deleteClothes(selectedItem.value.clothesId)
+    selectedItem.value = null
+    await fetchClothes()
+  } catch (error) {
+    console.error('옷 삭제 실패:', error)
+    alert(error.response?.data?.message || '삭제 중 오류가 발생했습니다')
+  }
 }
 
 // 폼 리셋
@@ -430,8 +484,8 @@ const handleImageUpload = (event) => {
 
 // 폼 제출 (백엔드 API 호출)
 const handleSubmit = async () => {
-  // 이미지 필수 체크
-  if (!formData.value.imageFile) {
+  // 이미지 필수 체크 (수정 시에는 선택 사항)
+  if (!isEditMode.value && !formData.value.imageFile) {
     errorMessage.value = '이미지를 선택해주세요'
     return
   }
@@ -440,6 +494,25 @@ const handleSubmit = async () => {
   errorMessage.value = ''
 
   try{
+    if (isEditMode.value) {
+      const updateFormData = new FormData()
+      updateFormData.append('name', formData.value.name)
+      updateFormData.append('category', formData.value.category)
+      if (formData.value.tempRange) {
+        updateFormData.append('tempRange', formData.value.tempRange)
+      }
+      if (formData.value.imageFile) {
+        updateFormData.append('image', formData.value.imageFile)
+      }
+      await wardrobeApi.updateClothes(editingClothesId.value, updateFormData)
+
+      alert('옷 정보가 수정되었습니다!')
+      selectedItem.value = null
+      await fetchClothes()
+      closeModal()
+      return
+    }
+
     const clothesFormData = new FormData()
     clothesFormData.append('userId',userId.value)
     clothesFormData.append('name', formData.value.name)
@@ -716,6 +789,50 @@ onMounted(() => {
   letter-spacing: 2px;
 }
 
+.timeline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* 수정/삭제 버튼 (nav-btn과 동일한 원형 스타일) */
+.item-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.action-btn {
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+  color: white;
+}
+
+.action-btn.edit {
+  background: #3B82F6; /* 파란색 */
+}
+
+.action-btn.edit:hover {
+  background: #1D4ED8;
+  transform: scale(1.1);
+}
+
+.action-btn.delete {
+  background: #EF4444; /* 빨간색 */
+}
+
+.action-btn.delete:hover {
+  background: #B91C1C;
+  transform: scale(1.1);
+}
+
 
 @media (max-width: 1200px) {
   .wardrobe-container {
@@ -763,7 +880,8 @@ onMounted(() => {
     min-width: 100%; /* 1개씩 보이도록 변경 */
   }
 
-  .nav-btn {
+  .nav-btn,
+  .action-btn {
     width: 36px;
     height: 36px;
   }
