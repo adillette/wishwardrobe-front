@@ -85,7 +85,7 @@
                   :key="idx" 
                   class="clothing-item"
                 >
-                  <img 
+                  <AuthImage 
                     v-if="clothing.imageUrl" 
                     :src="clothing.imageUrl" 
                     :alt="clothing.name" 
@@ -123,323 +123,257 @@
   </div>
 </template>
 
-<script>
-import { ref, onMounted, computed } from 'vue';
-import wardrobeApi from '@/apis/wardrobeApi';
-import weatherApi from '@/apis/weatherApi';
-import { getCurrentUserId ,getNotificationChannel} from '@/constants/user';
-import locationApi from '@/apis/locationApi';
-import { enableNotification } from '@/services/pushSetup';
 
+<script setup>
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import AuthImage from '@/components/AuthImage.vue'
+import wardrobeApi from '@/apis/wardrobeApi'
+import weatherApi from '@/apis/weatherApi'
+import locationApi from '@/apis/locationApi'
+import { getCurrentUserId, getNotificationChannel } from '@/constants/user'
+import { enableNotification } from '@/services/pushSetup'
 
+// // 로그인 상태가 바뀌어도 최신값을 읽도록 computed로 둔다
+const userId = computed(() => getCurrentUserId())
+const notificationEnabled = ref(false)
 
-export default {
-  name: 'WeatherWardrobe',
-  setup() {
-      //로그인 상태가 바뀌어도 최신값을 읽도록 
-    const userId = computed(()=>getCurrentUserId());
-    const notificationEnabled=ref(false);
-    // 알림 방식은 회원가입/내 정보 수정에서 선택한 값을 사용 ("WEBPUSH" | "FCM")
-    
+// 반응형 상태
+const currentCoordinates = ref({ lat: 37.5665, lon: 126.9780 }) // 서울 기본 좌표
+const currentLocationName = ref('')
+const currentTemperature = ref(10)
+const highestTemp = ref(12)
+const lowestTemp = ref(0)
 
+// 옷차림 히스토리 (카드 3장)
+const wardrobeHistory = ref([
+  { day: '2 days ago', temperature: 8, clothes: [] },
+  { day: 'yesterday', temperature: 10, clothes: [] },
+  { day: 'today', temperature: 12, clothes: [] }
+])
 
+let weatherTimer = null // // 10분 주기 갱신 타이머. 언마운트 때 정리하려고 기억해 둔다
 
-    // 반응형 상태 변수들 정의
-    const currentCoordinates = ref({ lat: 37.5665, lon: 126.9780 }); // 서울 기본 좌표
-    const currentLocationName = ref(''); // 백엔드에서 받아온 위치명
-    const currentTemperature = ref(10);
-    const highestTemp = ref(12);
+// 서버에 저장된 알림 위치 동기화
+const syncNotificationLocation = async () => {
+  try {
+    const saved = await locationApi.getLocation(userId.value)
+    // 서버가 켜짐이어도 브라우저 알림 권한이 없으면 실제로는 받을 수 없으므로 꺼짐으로 표시한다
+    const permitted = typeof Notification !== 'undefined' && Notification.permission === 'granted'
+    notificationEnabled.value = (saved?.enabled ?? false) && permitted
+    if (notificationEnabled.value) {
+      await locationApi.updateLocation(
+        userId.value,
+        currentCoordinates.value.lat,
+        currentCoordinates.value.lon,
+        true
+      )
+    }
+  } catch (error) {
+    console.error('알림 위치 동기화 실패:', error)
+  }
+}
 
-    const lowestTemp = ref(0);
-  
-    
-    const syncNotificationLocation = async ()=>{
-      try {
-        const saved = await locationApi.getLocation(userId.value);
-        // 서버가 켜짐이어도 브라우저 알림 권한이 없으면 실제로는 받을 수 없으므로 꺼짐으로 표시한다
-        const permitted = typeof Notification !== 'undefined' && Notification.permission === 'granted';
-        notificationEnabled.value = (saved?.enabled ?? false) && permitted;
-         if (notificationEnabled.value) {
-            await locationApi.updateLocation(
-              userId.value,
-              currentCoordinates.value.lat,
-              currentCoordinates.value.lon,
-              true
-            );
-          }
+const toggleNotification = async () => {
+  if (userId.value == null) {
+    alert('로그인이 필요합니다.')
+    return
+  }
 
-      } catch (error) {
-        console.error('알림 위치 동기화 실패:', error);
-      }
-    };
-
-    const toggleNotification = async () =>{
-      if (userId.value == null) {
-        alert('로그인이 필요합니다.');
-        return;
-      }
-
-      try {
-        if(!notificationEnabled.value){
-        
-        const {locationSaved} = await enableNotification(
+  try {
+    if (!notificationEnabled.value) {
+      const { locationSaved } = await enableNotification(
         getNotificationChannel(),
         currentCoordinates.value.lat,
         currentCoordinates.value.lon
-      );
-      
-        notificationEnabled.value = locationSaved;
+      )
+      notificationEnabled.value = locationSaved
+    } else {
+      await locationApi.updateLocation(
+        userId.value,
+        currentCoordinates.value.lat,
+        currentCoordinates.value.lon,
+        false
+      )
+      notificationEnabled.value = false
+    }
+  } catch (error) {
+    console.error('알림 설정 변경 실패:', error)
+    alert('알림 설정 실패: ' + error.message)
+  }
+}
 
-        }else{
-          await locationApi.updateLocation(
-            userId.value,
-            currentCoordinates.value.lat,
-            currentCoordinates.value.lon,
-            false
-          );
-          notificationEnabled.value = false;
-        }
-      } catch (error) {
-         console.error('알림 설정 변경 실패:', error);
-        alert('알림 설정 실패: ' + error.message);
-      }
+// 네비게이션 (아직 구현 전)
+const navigateTo = (page) => {
+  console.log(`Navigating to ${page}`)
+}
+
+const goBack = () => {
+  console.log('Going back')
+}
+
+// 날씨 데이터 조회 (좌표 우선, 없으면 지역명)
+const fetchWeatherData = async (location) => {
+  try {
+    const { lat, lon } = currentCoordinates.value
+    const response = lat && lon
+      ? await weatherApi.getWeatherByCoordinates(lat, lon)
+      : await weatherApi.getWeatherByLocation(location)
+
+    console.log('현재 온도', response)
+
+    if (response) {
+      currentTemperature.value = response.maxTemperature || response.minTemperature || 10
+      highestTemp.value = response.maxTemperature || 12
+      lowestTemp.value = response.minTemperature || 0
+    }
+  } catch (error) {
+    console.error('날씨 데이터 로드 실패:', error)
+  }
+}
+
+// 사용자의 현재 위치 가져오기 (Geolocation API)
+const getCurrentPosition = () => {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Geolocation is not supported'))
+      return
     }
 
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords
+        currentCoordinates.value = { lat: latitude, lon: longitude }
 
-
-    //** 옷차림 히스토리 데이터
-    const wardrobeHistory = ref([
-      {
-        day: '2 days ago',
-        temperature: 8,
-        clothes: []
-      },
-      {
-        day: 'yesterday',
-        temperature: 10,
-        clothes: []
-      },
-      {
-        day: 'today',
-        temperature: 12,
-        clothes: []
-      }
-    ]);
-
-    // 네비게이션 함수
-    const navigateTo = (page) => {
-      console.log(`Navigating to ${page}`);
-      // 실제 라우팅 로직 구현
-    };
-
-    // 뒤로가기 함수
-    const goBack = () => {
-      console.log('Going back');
-      // 실제 뒤로가기 로직 구현
-    };
-
-
-
-    //기상청 API에서 날씨 데이터 가져오기
-    const fetchWeatherData = async (location) => {
-      try {
-        let response;
-      
-        if(currentCoordinates.value?.lat&& currentCoordinates.value?.lon)
-
-        response= await weatherApi.getWeatherByCoordinates(currentCoordinates.value.lat,currentCoordinates.value.lon);
-        
-        else  response = await weatherApi.getWeatherByLocation(location);
-        
-        console.log("현재 온도",response);
-        //** 응답 데이터로 상태 업데이트
-        if (response) {
-          // 백엔드 WeatherForecastDTO 구조에 맞춰 매핑
-          currentTemperature.value = response.maxTemperature || response.minTemperature || 10;
-          highestTemp.value = response.maxTemperature || 12;
-          lowestTemp.value = response.minTemperature || 0;
-          
-          // 위치 정보는 카카오 API에서 이미 설정했으므로 백엔드 응답으로 덮어쓰지 않음
-
-          console.log('날씨 데이터 로드 성공:', response);
+        try {
+          // 카카오맵 Reverse Geocoding으로 좌표 → 지역명 변환
+          const locationName = await reverseGeocode(latitude, longitude)
+          currentLocationName.value = locationName
+          resolve(locationName)
+        } catch (error) {
+          console.error('Reverse Geocoding 실패:', error)
+          currentLocationName.value = '서울'
+          resolve('서울')
         }
-      } catch (error) {
-        console.error('날씨 데이터 로드 실패:', error);
-        //** 에러 발생 시 기본값 사용
+      },
+      (error) => {
+        console.error('위치 정보 가져오기 실패:', error)
+        reject(error)
+      },
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+    )
+  })
+}
+
+// 카카오맵 JavaScript SDK로 좌표를 지역명으로 변환
+const reverseGeocode = (lat, lon) => {
+  return new Promise((resolve, reject) => {
+    try {
+      if (!window.kakao) {
+        console.error('Kakao Maps SDK가 로드되지 않았습니다')
+        reject(new Error('Kakao Maps SDK not loaded'))
+        return
       }
-    };
 
-    //** 사용자의 현재 위치 가져오기 (Geolocation API)
-    const getCurrentPosition = () => {
-      return new Promise((resolve, reject) => {
-        if (!navigator.geolocation) {
-          reject(new Error('Geolocation is not supported'));
-          return;
-        }
+      window.kakao.maps.load(() => {
+        const geocoder = new window.kakao.maps.services.Geocoder()
 
-        navigator.geolocation.getCurrentPosition(
-          async (position) => {
-            const { latitude, longitude } = position.coords;
-            currentCoordinates.value = { lat: latitude, lon: longitude };
-            
-            try {
-              // 카카오맵 Reverse Geocoding으로 위도/경도 → 지역명 변환
-              const locationName = await reverseGeocode(latitude, longitude);
-              currentLocationName.value = locationName; // 위치명 저장
-              
-              resolve(locationName);
-            } catch (error) {
-              console.error('Reverse Geocoding 실패:', error);
-              // 실패 시 기본 지역명 사용
-              currentLocationName.value = '서울';
-              resolve('서울');
+        geocoder.coord2Address(lon, lat, (result, status) => {
+          if (status === window.kakao.maps.services.Status.OK) {
+            if (result && result.length > 0) {
+              const address = result[0].address
+              const locationName = address.region_3depth_name || address.region_2depth_name
+              console.log('지역명 변환 성공:', locationName)
+              resolve(locationName)
+            } else {
+              console.error('주소를 찾을 수 없습니다')
+              reject(new Error('주소를 찾을 수 없습니다'))
             }
-          },
-          (error) => {
-            console.error('위치 정보 가져오기 실패:', error);
-            reject(error);
-          },
-          {
-            enableHighAccuracy: true,
-            timeout: 5000,
-            maximumAge: 0
+          } else {
+            console.error('Geocoding 실패:', status)
+            reject(new Error(`Geocoding failed with status: ${status}`))
           }
-        );
-      });
-    };
+        })
+      })
+    } catch (error) {
+      console.error('Reverse Geocoding 에러:', error)
+      reject(error)
+    }
+  })
+}
 
-    //** 카카오맵 JavaScript SDK로 좌표를 지역명으로 변환 (Reverse Geocoding)
-    const reverseGeocode = async (lat, lon) => {
-      return new Promise((resolve, reject) => {
-        try {
-          // Kakao Maps SDK 로드 확인
-          if (!window.kakao) {
-            console.error('Kakao Maps SDK가 로드되지 않았습니다');
-            reject(new Error('Kakao Maps SDK not loaded'));
-            return;
-          }
+// 옷장 히스토리 데이터 가져오기 (2일전, 어제, 오늘)
+// // 매개변수 이름을 uid로 바꿨다. userId(computed)와 이름이 겹쳐 헷갈리는 것을 막기 위함
+const fetchWardrobeHistory = async (uid) => {
+  try {
+    const pastTemperatureHistory = [
+      { date: '2 days ago', temperature: currentTemperature.value - 2 },
+      { date: 'yesterday', temperature: currentTemperature.value }
+    ]
 
-          // Geocoder 초기화
-          window.kakao.maps.load(() => {
-            const geocoder = new window.kakao.maps.services.Geocoder();
+    // 오늘은 현재 위경도 기반으로 Weather Service를 연동한 추천을 바로 받아온다 (MSA 방식)
+    const [pastHistoryData, todayClothes] = await Promise.all([
+      wardrobeApi.getWardrobeHistory(uid, pastTemperatureHistory),
+      wardrobeApi.getRecommendedClothesByCoordinates(
+        uid,
+        currentCoordinates.value.lat,
+        currentCoordinates.value.lon
+      )
+    ])
 
-            // 좌표로 주소 검색
-            geocoder.coord2Address(lon, lat, (result, status) => {
-              if (status === window.kakao.maps.services.Status.OK) {
-                if (result && result.length > 0) {
-                  const address = result[0].address;
-                  // "3단계" 지역명 반환 (구/군/시)
-                  const locationName = address.region_3depth_name || address.region_2depth_name;
-                  console.log('지역명 변환 성공:', locationName);
-                  resolve(locationName);
-                } else {
-                  console.error('주소를 찾을 수 없습니다');
-                  reject(new Error('주소를 찾을 수 없습니다'));
-                }
-              } else {
-                console.error('Geocoding 실패:', status);
-                reject(new Error(`Geocoding failed with status: ${status}`));
-              }
-            });
-          });
-        } catch (error) {
-          console.error('Reverse Geocoding 에러:', error);
-          reject(error);
-        }
-      });
-    };
+    const historyData = [
+      ...pastHistoryData,
+      { date: 'today', temperature: currentTemperature.value, clothes: todayClothes }
+    ]
 
-    //** 옷장 히스토리 데이터 가져오기 (2일전, 어제, 오늘)
-    const fetchWardrobeHistory = async (userId) => {
-      try {
-        
-        const pastTemperatureHistory = [
-          { date: '2 days ago', temperature: currentTemperature.value-2 },
-          { date: 'yesterday', temperature: currentTemperature.value }
-        ];
+    wardrobeHistory.value = wardrobeHistory.value.map((item, index) => ({
+      ...item,
+      temperature: historyData[index]?.temperature ?? item.temperature,
+      clothes: historyData[index]?.clothes || []
+    }))
 
-        //** 오늘은 현재 위경도 기반으로 Weather Service를 연동한 추천을 바로 받아옴 (MSA 방식)
-        const [pastHistoryData, todayClothes] = await Promise.all([
-          wardrobeApi.getWardrobeHistory(userId, pastTemperatureHistory),
-          wardrobeApi.getRecommendedClothesByCoordinates(
-            userId,
-            currentCoordinates.value.lat,
-            currentCoordinates.value.lon
-          )
-        ]);
-
-        const historyData = [
-          ...pastHistoryData,
-          { date: 'today', temperature: currentTemperature.value, clothes: todayClothes }
-        ];
-
-        //** wardrobeHistory 업데이트
-        wardrobeHistory.value = wardrobeHistory.value.map((item, index) => ({
-          ...item,
-          temperature: historyData[index]?.temperature ?? item.temperature,
-          clothes: historyData[index]?.clothes || []
-        }));
-
-        console.log('옷장 히스토리 로드 성공:', historyData);
-      } catch (error) {
-        console.error('옷장 히스토리 로드 실패:', error);
-      }
-    };
-
-    // 컴포넌트 마운트 시 날씨 데이터 로드
-    onMounted(async () => {
-      try {
-        //1. 사용자 현재 위치 가져오기 (Geolocation API)
-        const userLocation = await getCurrentPosition();
-        console.log('사용자 위치:', userLocation);
-        
-        //2. 위치 기반으로 날씨 데이터 조회
-        await fetchWeatherData(userLocation);
-        
-         //3. 서버에 저장된 알림 설정 동기화
-        await syncNotificationLocation();
-
-        // 4. 옷장 히스토리 로드
-        await fetchWardrobeHistory(userId.value);
-
-      } catch (error) {
-        // 위치 가져오기 실패 시 기본 위치 사용
-        console.error('위치 정보 접근 실패, 기본 위치 사용:', error);
-        await fetchWeatherData('서울');
-
-        await fetchWardrobeHistory(userId.value);
-
-      }
-      
-      // 주기적으로 날씨 데이터 업데이트 (10분마다)
-      setInterval(async () => {
-        try {
-          const userLocation = await getCurrentPosition();
-          await fetchWeatherData(userLocation);
-        } catch (error) {
-          await fetchWeatherData('서울');
-        }
-      }, 600000); // 600000ms = 10분
-    });
-
-    return {
-      currentLocationName,
-      currentCoordinates,
-      currentTemperature,
-      highestTemp,
-     
-      lowestTemp,
-      
-     
-      wardrobeHistory,
-      navigateTo,
-      goBack,
-      getCurrentPosition,
-      notificationEnabled,
-      toggleNotification
-    };
+    console.log('옷장 히스토리 로드 성공:', historyData)
+  } catch (error) {
+    console.error('옷장 히스토리 로드 실패:', error)
   }
-};
+}
+
+// 컴포넌트 마운트 시 날씨 데이터 로드
+onMounted(async () => {
+  try {
+    // 1. 사용자 현재 위치 (Geolocation API)
+    const userLocation = await getCurrentPosition()
+    console.log('사용자 위치:', userLocation)
+
+    // 2. 위치 기반 날씨 조회
+    await fetchWeatherData(userLocation)
+
+    // 3. 서버에 저장된 알림 설정 동기화
+    await syncNotificationLocation()
+
+    // 4. 옷장 히스토리 로드
+    await fetchWardrobeHistory(userId.value)
+  } catch (error) {
+    // 위치 가져오기 실패 시 기본 위치 사용
+    console.error('위치 정보 접근 실패, 기본 위치 사용:', error)
+    await fetchWeatherData('서울')
+    await fetchWardrobeHistory(userId.value)
+  }
+
+  // 10분마다 날씨 갱신
+  weatherTimer = setInterval(async () => {
+    try {
+      const userLocation = await getCurrentPosition()
+      await fetchWeatherData(userLocation)
+    } catch (error) {
+      await fetchWeatherData('서울')
+    }
+  }, 600000)
+})
+
+// // 원래 코드에는 없던 정리 코드. 페이지를 떠난 뒤에도 10분마다 요청이 계속 나가는 것을 막는다
+onBeforeUnmount(() => {
+  if (weatherTimer) clearInterval(weatherTimer)
+})
 </script>
 
 <style scoped>
@@ -621,10 +555,14 @@ export default {
   justify-content: center;
 }
 
-.clothing-image img {
+
+.clothing-image {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  aspect-ratio: 3/4;
+  background: #f5f5f5;
+  border-radius: 12px;
+  object-fit: cover;   /* // 추가: img에 직접 걸어야 비율이 유지된다 */
+  display: block;      /* // img에는 flex가 의미 없어서 block으로 바꾼다 */
 }
 
 /* 오른쪽 날씨 상세 정보 카드 - 세로 스택 */
