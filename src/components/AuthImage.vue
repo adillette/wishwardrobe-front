@@ -53,20 +53,14 @@ async function load(url){
         return
     }
 
-    try{
-        const res = await wardrobeApi.get(toRequestUrl(url),{
-            baseURL:'',
-            //// 인스턴스 baseURL('/api')이 또 붙어 '/api/api/...'가 되는 것을 막는다
-            responseType:'blob'//이미지를 바이너리로 받는다
+    try {
+    const blob = await wardrobeApi.getImageBlob(toRequestUrl(url))
 
-        })
-
-        if(myId !==requestId) return //더 최신 요청이 있으면 결과는 무시하고 넘어간다
-        const created = URL.createObjectURL(res.data)// 임시 주소 생성
-        setDisplay(url, created)
-
-    }catch(e){
-       if (myId !== requestId) return
+        if (myId !== requestId) return
+        const created = URL.createObjectURL(blob)   // // 이제 res.data가 아니라 blob 자체를 받는다
+        setDisplay(created, created)                // // 표시할 주소 = blob 주소
+    } catch (e) {
+        if (myId !== requestId) return
         console.error('이미지 로드 실패:', e)
         setDisplay(props.fallback)
     }
