@@ -3,9 +3,10 @@
     <!-- 왼쪽 큰 이미지 섹션 -->
     <div class="main-image-section">
       <div class="main-image-wrapper">
-        <img 
-          :src="selectedItem?.imageUrl || defaultImage" 
+        <AuthImage
+          :src="selectedItem?.imageUrl"
           :alt="selectedItem?.name || 'Wardrobe item'"
+          :fallback="defaultImage"
           class="main-image"
         />
       </div>
@@ -75,7 +76,7 @@
               @click="selectItem(item)"
             >
               <div class="item-image-wrapper">
-                <img :src="item.imageUrl || defaultImage" :alt="item.name" />
+                <AuthImage :src="item.imageUrl" :alt="item.name" :fallback="defaultImage" />
                 <div class="item-info">
                   <h3>{{ item.name }}</h3>
                 </div>
@@ -130,7 +131,7 @@
             <div class="modal-left">
               <div class="image-preview-section">
                 <div v-if="previewImage" class="preview-wrapper">
-                  <img :src="previewImage" alt="Preview" />
+                  <AuthImage :src="previewImage" alt="Preview" />
                 </div>
                 <div v-else class="preview-placeholder">
                   <svg width="64" height="64" viewBox="0 0 24 24" fill="currentColor">
@@ -234,6 +235,7 @@ import { ref, computed, h, onMounted } from 'vue'
 import { defineOptions } from 'vue'
 import wardrobeApi from '@/apis/wardrobeApi'
 import { getCurrentUserId } from '@/constants/user'
+import AuthImage from '@/components/AuthImage.vue'
 
 // 컴포넌트 이름
 defineOptions({
