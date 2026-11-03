@@ -1,7 +1,7 @@
 <script setup>
 
 import { ref, watch, onBeforeUnmount,defineOptions } from 'vue'
-import { wardrobeApi } from '@/apis/wardrobeApi'
+import wardrobeApi from '@/apis/wardrobeApi'
 
 defineOptions({
   name: 'AuthImage'
