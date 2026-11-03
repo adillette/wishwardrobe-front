@@ -64,7 +64,7 @@
                   <!-- 실제 상의 이미지 -->
                   <AuthImage v-if="currentTop?.imageUrl" :src="currentTop.imageUrl" :alt="currentTop.name" class="clothing-image" />
                   <p v-else class="no-clothes">추천 상의/겉옷 없음</p>
-                  <p v-if="currentTop" class="clothing-name">{{ currentTop.name }}</p>
+                  
                 </div>
                 
                 <button class="nav-btn next" @click="nextOutfit">
