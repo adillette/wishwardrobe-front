@@ -1,7 +1,7 @@
 <script setup>
 
-import { ref, watch, onBeforeUnmount } from 'vue'
-import { wardrobeApi as axiosInstance } from '@/apis/axiosConfig'
+import { ref, watch, onBeforeUnmount,defineOptions } from 'vue'
+import { wardrobeApi } from '@/apis/wardrobeApi'
 
 defineOptions({
   name: 'AuthImage'
@@ -12,6 +12,8 @@ const props = defineProps({
     alt: { type: String, default: '' },
     fallback:{ type: String, default: ''}
 })
+const needAuth = (url) => url.includes('/clothes/images/')
+
 
 const displaySrc = ref('')
 let objectUrl = null
@@ -52,7 +54,7 @@ async function load(url){
     }
 
     try{
-        const res = await axiosInstance.get(toRequestUrl(url),{
+        const res = await wardrobeApi.get(toRequestUrl(url),{
             baseURL:'',
             //// 인스턴스 baseURL('/api')이 또 붙어 '/api/api/...'가 되는 것을 막는다
             responseType:'blob'//이미지를 바이너리로 받는다
