@@ -2,6 +2,16 @@
 import "./axiosConfig";
 import { wardrobeApi } from "./axiosConfig";
 
+async function getImageBlob(url) {
+  const response = await wardrobeApi.get(url, {
+    baseURL: '',           // 인스턴스 baseURL('/api')이 또 붙어 '/api/api/...'가 되는 것을 막는다
+    responseType: 'blob'   // 이미지를 바이너리로 받는다
+  });
+  return response.data;
+}
+
+
+
 // 특정 사용자의 옷 전체 조회 (옷장 목록용)
 async function getClothesByUserId(userId) {
   const response = await wardrobeApi.get(`/clothes/user/${userId}`);
@@ -102,6 +112,7 @@ async function getWardrobeHistory(userId, temperatureHistory, category = null) {
 }
 
 export default {
+  getImageBlob,
   getClothesByUserId,
   getRecommendedClothesByCoordinates,
   getRecommendedClothes,
