@@ -62,7 +62,7 @@
                 
                 <div class="wardrobe-item">
                   <!-- 실제 상의 이미지 -->
-                  <img v-if="currentTop?.imageUrl" :src="currentTop.imageUrl" :alt="currentTop.name" class="clothing-image" />
+                  <AuthImage v-if="currentTop?.imageUrl" :src="currentTop.imageUrl" :alt="currentTop.name" class="clothing-image" />
                   <p v-else class="no-clothes">추천 상의/겉옷 없음</p>
                   <p v-if="currentTop" class="clothing-name">{{ currentTop.name }}</p>
                 </div>
@@ -80,7 +80,7 @@
               <h2 class="section-title">my Acc</h2>
               <div class="accessory-item">
                 <!-- 실제 가방 이미지 -->
-                <img v-if="recommended.accessory?.imageUrl" :src="recommended.accessory.imageUrl" :alt="recommended.accessory.name" class="clothing-image" />
+                <AuthImage v-if="recommended.accessory?.imageUrl" :src="recommended.accessory.imageUrl" :alt="recommended.accessory.name" class="clothing-image" />
                 <p v-else class="no-clothes">추천 없음</p>
               </div>
             </div>
@@ -89,7 +89,7 @@
               <h2 class="section-title">Bottom</h2>
               <div class="bottom-item">
                 <!-- 실제 하의 이미지 -->
-                <img v-if="recommended.bottom?.imageUrl" :src="recommended.bottom.imageUrl" :alt="recommended.bottom.name" class="clothing-image" />
+                <AuthImage v-if="recommended.bottom?.imageUrl" :src="recommended.bottom.imageUrl" :alt="recommended.bottom.name" class="clothing-image" />
                 <p v-else class="no-clothes">추천 없음</p>
               </div>
             </div>
@@ -124,6 +124,7 @@ import weatherApi from '@/apis/weatherApi'
 import wardrobeApi from '@/apis/wardrobeApi'
 import locationApi from '@/apis/locationApi'
 import { getCurrentUserId } from '@/constants/user'
+import AuthImage from '@/components/AuthImage.vue'
 // 컴포넌트 이름 설정
 defineOptions({
   name: 'WhatToWearApp'
