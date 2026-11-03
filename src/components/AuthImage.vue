@@ -86,4 +86,5 @@ onBeforeUnmount(()=>{
 </script>
 <template>
   <img v-if="displaySrc" :src="displaySrc" :alt="alt" />
+  <div v-else />
 </template>
