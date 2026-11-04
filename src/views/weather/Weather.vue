@@ -166,6 +166,7 @@ import { defineOptions } from 'vue'
 import axios from 'axios'
 import weatherApiService from '@/apis/weatherApi'
 import { enableNotification } from '@/services/pushSetup'
+import { getCurrentPosition, checkLocationPermission } from '@/utils/geolocation'
 
 // 컴포넌트 이름 (선택)
 defineOptions({
@@ -292,15 +293,13 @@ function initMap() {
 }
 async function tryAutoRequestIfGranted(map) {
   try {
-    if (!navigator.permissions?.query) return
-    const status = await navigator.permissions.query({ name: 'geolocation' })
-    if (status.state === 'granted') requestCurrentLocation(map)
+    if ((await checkLocationPermission()) === 'granted') requestCurrentLocation(map)
   } catch {
     // permissions API 미지원이면 무시
   }
 }
 
-function requestCurrentLocation(map) {
+async function requestCurrentLocation(map) {
   if (!navigator.geolocation) {
     locationMessage.value = 'Geolocation 미지원'
     currentLocation.value = '브라우저가 위치 서비스를 지원하지 않습니다.'
@@ -310,42 +309,39 @@ function requestCurrentLocation(map) {
   locationMessage.value = '위치 확인 중...'
   currentLocation.value = ''
 
-  navigator.geolocation.getCurrentPosition(
-     async (position) => {
-      const lat = position.coords.latitude
-      const lon = position.coords.longitude
+  let lat, lon
+  try {
+    ({ latitude: lat, longitude: lon } = await getCurrentPosition({ timeout: 10000 }))
+  } catch (error) {
+    console.error('Geolocation error:', error)
 
-      userLatitude.value = lat
-      userLongitude.value = lon
+    if (error.code === 1) {
+      locationMessage.value = '위치 권한이 거부됨'
+      currentLocation.value = '사이트 설정에서 위치를 “허용”으로 바꿔주세요.'
+    } else if (error.code === 2) {
+      locationMessage.value = '위치 정보를 가져올 수 없음'
+      currentLocation.value = 'GPS/네트워크 상태를 확인해주세요.'
+    } else if (error.code === 3) {
+      locationMessage.value = '위치 요청 시간 초과'
+      currentLocation.value = '잠시 후 다시 시도해주세요.'
+    } else {
+      locationMessage.value = 'Geolocation 오류'
+      currentLocation.value = '위치 정보를 가져올 수 없습니다.'
+    }
+    return
+  }
 
-      const locPosition = new window.kakao.maps.LatLng(lat, lon)
-      const message = '<div style="padding:5px;">여기에 계신가요?!</div>'
+  userLatitude.value = lat
+  userLongitude.value = lon
 
-      locationMessage.value = `위도: ${lat.toFixed(6)}, 경도: ${lon.toFixed(6)}`
-      currentLocation.value = '현재 위치를 찾았습니다!'
+  const locPosition = new window.kakao.maps.LatLng(lat, lon)
+  const message = '<div style="padding:5px;">여기에 계신가요?!</div>'
 
-      displayMarker(map, locPosition, message)
-      await fetchWeather(lat, lon)
-    },
-    (error) => {
-      console.error('Geolocation error:', error)
+  locationMessage.value = `위도: ${lat.toFixed(6)}, 경도: ${lon.toFixed(6)}`
+  currentLocation.value = '현재 위치를 찾았습니다!'
 
-      if (error.code === 1) {
-        locationMessage.value = '위치 권한이 거부됨'
-        currentLocation.value = '사이트 설정에서 위치를 “허용”으로 바꿔주세요.'
-      } else if (error.code === 2) {
-        locationMessage.value = '위치 정보를 가져올 수 없음'
-        currentLocation.value = 'GPS/네트워크 상태를 확인해주세요.'
-      } else if (error.code === 3) {
-        locationMessage.value = '위치 요청 시간 초과'
-        currentLocation.value = '잠시 후 다시 시도해주세요.'
-      } else {
-        locationMessage.value = 'Geolocation 오류'
-        currentLocation.value = '위치 정보를 가져올 수 없습니다.'
-      }
-    },
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-  )
+  displayMarker(map, locPosition, message)
+  await fetchWeather(lat, lon)
 }
 
 function displayMarker(map, locPosition, message) {

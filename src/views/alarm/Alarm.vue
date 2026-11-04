@@ -125,6 +125,7 @@ import wardrobeApi from '@/apis/wardrobeApi'
 import locationApi from '@/apis/locationApi'
 import { getCurrentUserId } from '@/constants/user'
 import AuthImage from '@/components/AuthImage.vue'
+import { getCurrentPosition as getGeoPosition } from '@/utils/geolocation'
 // 컴포넌트 이름 설정
 defineOptions({
   name: 'WhatToWearApp'
@@ -271,42 +272,27 @@ const fetchRecommendedClothes = async () => {
 }
 
     //** 사용자의 현재 위치 가져오기 (Geolocation API)
-    const getCurrentPosition = () => {
-      return new Promise((resolve, reject) => {
-        if (!navigator.geolocation) {
-          reject(new Error('Geolocation is not supported'));
-          return;
-        }
+    const getCurrentPosition = async () => {
+      let latitude, longitude;
+      try {
+        ({ latitude, longitude } = await getGeoPosition());
+      } catch (error) {
+        console.error('위치 정보 가져오기 실패:', error);
+        throw error;
+      }
+      currentCoordinates.value = { lat: latitude, lon: longitude };
 
-        navigator.geolocation.getCurrentPosition(
-          async (position) => {
-            const { latitude, longitude } = position.coords;
-            currentCoordinates.value = { lat: latitude, lon: longitude };
-            
-            try {
-              // 카카오맵 Reverse Geocoding으로 위도/경도 → 지역명 변환
-              const locationName = await reverseGeocode(latitude, longitude);
-              currentLocationName.value = locationName; // 위치명 저장
-              
-              resolve(locationName);
-            } catch (error) {
-              console.error('Reverse Geocoding 실패:', error);
-              // 실패 시 기본 지역명 사용
-              currentLocationName.value = '서울';
-              resolve('서울');
-            }
-          },
-          (error) => {
-            console.error('위치 정보 가져오기 실패:', error);
-            reject(error);
-          },
-          {
-            enableHighAccuracy: true,
-            timeout: 5000,
-            maximumAge: 0
-          }
-        );
-      });
+      try {
+        // 카카오맵 Reverse Geocoding으로 위도/경도 → 지역명 변환
+        const locationName = await reverseGeocode(latitude, longitude);
+        currentLocationName.value = locationName; // 위치명 저장
+        return locationName;
+      } catch (error) {
+        console.error('Reverse Geocoding 실패:', error);
+        // 실패 시 기본 지역명 사용
+        currentLocationName.value = '서울';
+        return '서울';
+      }
     };
 
     //** 카카오맵 JavaScript SDK로 좌표를 지역명으로 변환 (Reverse Geocoding)

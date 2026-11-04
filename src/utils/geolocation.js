@@ -5,9 +5,10 @@
 
 /**
  * 현재 위치 가져오기
+ * @param {PositionOptions} [options] 기본 옵션을 덮어쓸 값
  * @returns {Promise<{latitude: number, longitude: number}>}
  */
-export const getCurrentPosition = () => {
+export const getCurrentPosition = (options = {}) => {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
       reject(new Error('브라우저가 위치 정보를 지원하지 않습니다'));
@@ -37,12 +38,15 @@ export const getCurrentPosition = () => {
             break;
         }
         
-        reject(new Error(errorMessage));
+        const err = new Error(errorMessage);
+        err.code = error.code;
+        reject(err);
       },
       {
         enableHighAccuracy: true,  // 높은 정확도 요청
-        timeout: 5000,             // 5초 제한
-        maximumAge: 0              // 캐시 사용 안함
+        timeout: 10000,            // 10초 제한
+        maximumAge: 0,             // 캐시 사용 안함
+        ...options
       }
     );
   });
