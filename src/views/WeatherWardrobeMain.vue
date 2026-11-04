@@ -159,13 +159,13 @@ let weatherTimer = null // // 10분 주기 갱신 타이머. 언마운트 때 �
 // 서버에 저장된 알림 위치 동기화
 const syncNotificationLocation = async () => {
   try {
-    const saved = await locationApi.getLocation(userId.value)
+    const saved = await locationApi.getLocation()
     // 서버가 켜짐이어도 브라우저 알림 권한이 없으면 실제로는 받을 수 없으므로 꺼짐으로 표시한다
     const permitted = typeof Notification !== 'undefined' && Notification.permission === 'granted'
     notificationEnabled.value = (saved?.enabled ?? false) && permitted
     if (notificationEnabled.value) {
       await locationApi.updateLocation(
-        userId.value,
+        
         currentCoordinates.value.lat,
         currentCoordinates.value.lon,
         true
@@ -192,7 +192,7 @@ const toggleNotification = async () => {
       notificationEnabled.value = locationSaved
     } else {
       await locationApi.updateLocation(
-        userId.value,
+       
         currentCoordinates.value.lat,
         currentCoordinates.value.lon,
         false
