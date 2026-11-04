@@ -115,10 +115,7 @@
               <div class="detail-value">{{ lowestTemp }}°C</div>
              
             </div>
-            <div class="detail-card">
-              <div class="detail-label">Before</div>
-              
-            </div>
+            
           </div>
         </div>
       </div>
