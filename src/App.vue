@@ -12,6 +12,11 @@
 
 <script setup>
 import Header from "./components/common/Header.vue";
+import { onMounted } from "vue";
+
+onMounted(() => {
+  import('@/utils/fcm').then(({ listenForegroundMessages }) => listenForegroundMessages())
+})
 </script>
 
 <style></style>
