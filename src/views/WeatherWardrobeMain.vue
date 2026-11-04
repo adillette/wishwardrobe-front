@@ -58,6 +58,9 @@
           <button  :class="{ off: !notificationEnabled }" @click="toggleNotification">
             {{ notificationEnabled ? '🔔 알림 켜짐' : '🔕 알림 꺼짐' }}
           </button>
+          <button class="sample" :disabled="isSendingSample" @click="sendSample">
+            {{ isSendingSample ? '요청 중...' : '📨 샘플 즉시 받기' }}
+          </button>
         </div>
         <!-- 현재 날씨 카드 -->
         <div class="current-weather-card">
@@ -199,6 +202,37 @@ const toggleNotification = async () => {
   } catch (error) {
     console.error('알림 설정 변경 실패:', error)
     alert('알림 설정 실패: ' + error.message)
+  }
+}
+
+//샘플 알림 보내기
+const isSendingSample = ref(false)
+
+const sendSample = async () => {
+  if (userId.value == null) {
+    alert('로그인이 필요합니다.')
+    return
+  }
+  if (isSendingSample.value) return
+  isSendingSample.value = true
+
+  try {
+    // // 꺼져 있으면 먼저 켠다 (권한 요청 + 구독 등록). 실패하면 toggleNotification이 alert를 띄운다
+    if (!notificationEnabled.value) {
+      await toggleNotification()
+      if (!notificationEnabled.value) return
+    }
+    await locationApi.sendNow(
+      
+      currentCoordinates.value.lat,
+      currentCoordinates.value.lon
+    )
+    alert('샘플 알림을 요청했습니다. 잠시 후 도착합니다.')
+  } catch (error) {
+    console.error('샘플 알림 요청 실패:', error)
+    alert('샘플 알림 요청 실패: ' + error.message)
+  } finally {
+    isSendingSample.value = false
   }
 }
 
@@ -544,17 +578,6 @@ onBeforeUnmount(() => {
   text-align: center;
 }
 
-.clothing-image {
-  width: 100%;
-  aspect-ratio: 3/4;
-  background: #f5f5f5;
-  border-radius: 12px;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 
 .clothing-image {
   width: 100%;
@@ -631,6 +654,24 @@ onBeforeUnmount(() => {
 
 .notification-box button.off:hover {
   background: #d5d8dd;
+}
+
+.notification-box {
+  display: flex;
+  gap: 10px;
+}
+
+.notification-box button.sample {
+  background: #2e9e6b;
+}
+
+.notification-box button.sample:hover:not(:disabled) {
+  background: #25805a;
+}
+
+.notification-box button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* 반응형 레이아웃 */
