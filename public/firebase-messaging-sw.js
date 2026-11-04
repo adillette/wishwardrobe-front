@@ -21,18 +21,12 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage((payload) => {
     console.log('백그라운드 메시지 수신:', payload);
     
-    const { title, body } = payload.data || {};
-    if(title){
-         self.registration.showNotification(title, {
-            body,
-            icon:'/firebase-logo.png'
-        })
-    }
 });
 
 
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
-    const url = event.notification.data?.url ?? '/';
+    const data = event.notification.data ?? {};
+    const url = data.url ?? data.FCM_MSG?.data?.url ?? '/';
     event.waitUntil(clients.openWindow(url));
 });
