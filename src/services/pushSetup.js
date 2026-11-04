@@ -12,7 +12,7 @@ const urlBase64ToUint8Array = (base64String) => {
 };
 
 // 웹푸시 등록
-async function subscribeWebPush(userId) {
+async function subscribeWebPush() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     throw new Error('이 브라우저는 푸시 알림을 지원하지 않습니다.');
   }
@@ -29,14 +29,14 @@ async function subscribeWebPush(userId) {
     applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
   });
 
-  await alarmApi.subscribe({ ...subscription.toJSON(), userId });
+  await alarmApi.subscribe({ ...subscription.toJSON() });
   localStorage.setItem('pushEndpoint', subscription.endpoint); // 해제할 때 필요
 }
 
 // FCM 토큰 등록
-async function registerFcm(userId) {
+async function registerFcm() {
   const token = await getFcmToken();
-  await alarmApi.registerFcmToken({ userId, token, deviceId: getDeviceId() });
+  await alarmApi.registerFcmToken({  token, deviceId: getDeviceId() });
   localStorage.setItem('fcmToken', token); // 해제할 때 필요
 }
 
@@ -68,8 +68,8 @@ export async function enableNotification(channel, lat, lon) {
   if (userId == null) throw new Error('로그인이 필요합니다.');
   if (channel !== 'FCM' && channel !== 'WEBPUSH') throw new Error(`알 수 없는 채널: ${channel}`);
   
-  if (channel === 'FCM') await registerFcm(userId);
-  else await subscribeWebPush(userId);
+  if (channel === 'FCM') await registerFcm();
+  else await subscribeWebPush();
   
   await clearOtherChannel(channel);
   setNotificationChannel(channel);
@@ -77,7 +77,7 @@ export async function enableNotification(channel, lat, lon) {
   let locationSaved = false;
   if (lat != null && lon != null) {
     try {
-      await locationApi.updateLocation(userId, lat, lon, true);
+      await locationApi.updateLocation( lat, lon, true);
       locationSaved = true;
     } catch (e) {
       console.error('알림 위치 저장 실패:', e);

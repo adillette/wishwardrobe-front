@@ -94,7 +94,7 @@ const handleUnauthorized = (error) => {
   return Promise.reject(error);
 };
 
-[memberApi, wardrobeApi,userLocationApi].forEach((api) => {
+[memberApi, wardrobeApi,userLocationApi,alarmApi].forEach((api) => {
   api.interceptors.request.use(attachToken);
   api.interceptors.response.use((response) => response, handleUnauthorized);
 

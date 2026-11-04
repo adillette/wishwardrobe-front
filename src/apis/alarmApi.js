@@ -45,8 +45,8 @@ async function broadcast(request) {
 
 
 //FCM 토큰 등록
-async function registerFcmToken({userId, token,deviceId}) {
-  const response = await alarmApi.post('/fcm/register',{userId,token,deviceId});
+async function registerFcmToken({token,deviceId}) {
+  const response = await alarmApi.post('/fcm/register',{token,deviceId});
   return response.data;
 }
 
@@ -58,13 +58,13 @@ async function unregisterFcmToken({token}) {
   return response.data;
 }
 
-async function savePreference({userId, channel}) {
-  const response = await alarmApi.put('/preference',{userId, channel});
+async function savePreference({ channel}) {
+  const response = await alarmApi.put('/preference',{ channel});
   return response.data
 }
 
-async function getPreference(userId) {
-  const response = await alarmApi.get(`/preference/${userId}`);
+async function getPreference() {
+  const response = await alarmApi.get(`/preference`);
   return response.data;
 }
 
