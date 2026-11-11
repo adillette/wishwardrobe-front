@@ -1,11 +1,11 @@
 {
-  "name": "오늘의 옷장",
-  "short_name": "오늘의 옷장",
+  "name": "MSA 구조 설계 및 메시지 큐 기반 FCM/WebPush 멀티채널 푸시 알림 서비스",
+  "short_name": "MSA 푸시 알림",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#4a90e2",
+  "theme_color": "#ffffff",
   "icons": [
     { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
