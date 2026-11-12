@@ -682,7 +682,7 @@ const fetchWeatherFallback = async (latitude, longitude) => {
 .main-content {
   flex: 1;
   margin-top: 30px;
-  margin-left: 70px;
+  margin-left: 0px;
   padding: 30px;
   margin-right: 350px;
   background-color: #FFF9E5;
@@ -1241,12 +1241,12 @@ background-color: #999;
   }
   
   .main-content {
-    margin-left: 60px;
+    margin-left: 0px;
     padding: 20px;
   }
 
   .right-sidebar {
-    margin-left: 60px;
+    margin-left: 0px;
     padding: 20px;
   }
 
