@@ -563,8 +563,8 @@ watch(filteredItems, () => nextTick(updateCarousel))
 
 .wardrobe-container {
   display: flex;
-  height: 100vh;
-  background: #FFFEF3; 
+  min-height: 100vh; /* 확대 시 내용이 넘쳐도 위쪽이 잘리지 않고 스크롤되도록 */
+  background: #FFFEF3;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
@@ -707,6 +707,7 @@ watch(filteredItems, () => nextTick(updateCarousel))
   align-items: center;
   gap: 16px;
   margin-bottom: 30px;
+  min-height: 0;
 }
 
 
