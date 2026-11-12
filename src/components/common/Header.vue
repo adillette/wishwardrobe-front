@@ -155,6 +155,7 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  min-width: 0;
 }
 
 .header-brand {
@@ -192,6 +193,20 @@ export default {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;            /* 모자라면 줄어들 수 있게 */
+  overflow-x: auto;        /* 넘치면 가로 슬라이드 */
+  white-space: nowrap;     /* 글씨 줄바꿈(세로쓰기처럼 보이는 현상) 방지 */
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;   /* 스크롤바 숨김 */
+}
+
+.header-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.header-nav > * {
+  flex-shrink: 0;          /* 항목이 찌그러지지 않게 */
+  white-space: nowrap;
 }
 
 .nav-link {
@@ -262,11 +277,16 @@ export default {
   }
 
   .header-container {
-    padding: 0 20px;
+    padding: 0 12px;
   }
 
   .header-brand {
-    display: none;  
+    display: none;
+  }
+
+  .header-nav {
+    flex: 1;
+    gap: 6px;
   }
 
   .nav-link {
