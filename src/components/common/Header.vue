@@ -148,9 +148,10 @@ export default {
 
 .header-container {
   width: 100%;
-  max-width: 1400px;
-  margin: 0 auto;
+  max-width: none; /* 가로 전체로 확장 */
+  margin: 0;
   padding: 0 40px;
+  box-sizing: border-box;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -256,7 +257,7 @@ export default {
 
 @media (max-width: 768px) {
   .app-header {
-    left: 60px; 
+    left: 0px; 
     height: 50px;
   }
 
