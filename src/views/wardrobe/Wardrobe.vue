@@ -67,7 +67,8 @@
         <div class="gallery-wrapper">
           <div 
             class="gallery-track"
-            :style="{ transform: `translateX(-${currentSlide * slideWidth}%)` }"
+            ref="trackRef"
+            :style="{ transform: `translateX(-${currentSlide * slideOffset}px)` }"
           >
             <div 
               v-for="item in filteredItems" 
@@ -231,7 +232,7 @@
 </template>
 
 <script setup>
-import { ref, computed, h, onMounted } from 'vue'
+import { ref, computed, h, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { defineOptions } from 'vue'
 import wardrobeApi from '@/apis/wardrobeApi'
 import { getCurrentUserId } from '@/constants/user'
@@ -306,8 +307,17 @@ const selectedItem = ref(null)
 
 // 캐러셀 상태
 const currentSlide = ref(0)
-const itemsPerSlide = 3
-const slideWidth = 33.333
+const trackRef = ref(null)
+const visibleCount = ref(3)
+const slideOffset = ref(0) // px (카드 너비 + gap)
+
+const updateCarousel = () => {
+  const w = window.innerWidth
+  visibleCount.value = w <= 768 ? 1 : w <= 1200 ? 2 : 3 // CSS 브레이크포인트와 맞춤
+  const first = trackRef.value?.children[0]
+  if (first) slideOffset.value = first.offsetWidth + 16 // 16 = gap
+  currentSlide.value = Math.min(currentSlide.value, maxSlide.value)
+}
 
 // 날짜 계산
 const currentDate = computed(() => {
@@ -324,7 +334,7 @@ const filteredItems = computed(() => {
 
 // 최대 슬라이드
 const maxSlide = computed(() => {
-  return Math.max(0, Math.ceil(filteredItems.value.length / itemsPerSlide) - 1)
+  return Math.max(0, filteredItems.value.length - visibleCount.value)
 })
 
 // 카테고리 선택
@@ -537,7 +547,15 @@ const handleSubmit = async () => {
 // 컴포넌트 마운트 시 데이터 로드
 onMounted(() => {
   fetchClothes()
+  updateCarousel()
+  window.addEventListener('resize', updateCarousel)
 })
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateCarousel)
+})
+
+watch(filteredItems, () => nextTick(updateCarousel))
 </script>
 
 
