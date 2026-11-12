@@ -742,6 +742,7 @@ watch(filteredItems, () => nextTick(updateCarousel))
   flex: 1;
   overflow: hidden;
   border-radius: 16px;
+  padding: 16px 0 8px; /* 상단 잘림 방지 + 호버 시 위로 뜨는 여유 공간 */
 }
 
 
