@@ -402,9 +402,10 @@ onBeforeUnmount(() => {
 .weather-wardrobe-container {
   display: flex;
   height: 100vh;
-  width: 100vw;
+  height: 100dvh; /* 모바일 주소창 높이 변화 대응 */
+  width: 100%; /* 100vw는 세로 스크롤바/모바일에서 가로 넘침 유발 */
   overflow: hidden;
-  
+
 }
 
 .sidebar {
@@ -445,8 +446,10 @@ onBeforeUnmount(() => {
 
 .main-content {
   flex: 1;
+  min-width: 0; /* flex 자식이 내용 때문에 화면 밖으로 늘어나는 것 방지 */
   position: relative;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .background-image {
@@ -646,6 +649,7 @@ onBeforeUnmount(() => {
 
 .notification-box {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
@@ -700,11 +704,55 @@ onBeforeUnmount(() => {
   }
   
   .content-wrapper {
-    padding: 20px 30px;
+    padding: 20px 16px;
   }
-  
+
   .main-title {
     font-size: 32px;
+    margin-top: 20px;
+    margin-bottom: 24px;
+  }
+
+  .notification-box button {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+
+  .current-weather-card {
+    max-width: none;
+    min-width: 0;
+    padding: 16px 20px;
+  }
+
+  .temperature {
+    font-size: 40px;
+  }
+
+  /* 카드 3장이 한 줄에 찌그러지지 않도록 가로 스크롤 */
+  .wardrobe-history {
+    overflow-x: auto;
+    padding: 8px 4px 12px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .wardrobe-card {
+    flex: 0 0 70%;
+    min-width: 0;
+    padding: 14px;
+    scroll-snap-align: start;
+  }
+
+  .wardrobe-card:hover {
+    transform: none;
+  }
+
+  .detail-card {
+    padding: 16px;
+  }
+
+  .detail-value {
+    font-size: 26px;
   }
 }
 </style>
