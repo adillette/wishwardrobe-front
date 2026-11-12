@@ -1,17 +1,7 @@
 <template>
   <div class="weather-dashboard">
-    <!-- Sidebar Navigation -->
-    <aside class="sidebar">
-      <div class="logo">NGIJIH</div>
-      <nav class="nav-icons">
-        <button class="nav-icon active">🏠</button>
-        <button class="nav-icon">💬</button>
-        <button class="nav-icon">📍</button>
-        <button class="nav-icon">📅</button>
-      </nav>
-      <button class="nav-icon settings-bottom">⚙️</button>
-    </aside>
-
+  
+    
     <!-- Main Content -->
     <main class="main-content">
       <!-- Header -->
@@ -1214,15 +1204,25 @@ background-color: #999;
 
 /* Responsive */
 @media (max-width: 1400px) {
-  .main-content {
-    margin-right: 0;
+  /* 본문 아래로 right-sidebar가 오도록 세로 배치 */
+  .weather-dashboard {
+    flex-direction: column;
   }
-  
+
+  .main-content {
+    flex: none;
+    margin-right: 0;
+    min-width: 0;
+  }
+
   .right-sidebar {
     position: static;
-    width: 100%;
-    max-width: 350px;
-    margin: 0 auto;
+    width: auto;
+    height: auto;          /* 100vh 고정 해제 */
+    overflow: visible;
+    margin: 0 0 0 70px;    /* 왼쪽 고정 사이드바(70px) 만큼 비움 */
+    padding: 20px 30px 40px;
+    box-sizing: border-box;
   }
   
   .dashboard-grid {
@@ -1244,7 +1244,12 @@ background-color: #999;
     margin-left: 60px;
     padding: 20px;
   }
-  
+
+  .right-sidebar {
+    margin-left: 60px;
+    padding: 20px;
+  }
+
   .header {
     flex-direction: column;
     align-items: stretch;
