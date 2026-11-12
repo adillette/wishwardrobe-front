@@ -862,7 +862,7 @@ watch(filteredItems, () => nextTick(updateCarousel))
   }
 
   .main-image-section {
-    min-height: 400px;
+    min-height: 708px;
     padding: 40px;
   }
 
